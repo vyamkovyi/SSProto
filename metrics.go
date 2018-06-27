@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"strings"
-	"log"
 	"sync"
 )
 
@@ -22,8 +21,4 @@ func searchForMachine(id string) bool {
 		}
 	}
 	return false
-}
-
-func writeMachine(id string, info []byte) {
-	log.Println("HWInfo:", id + ":" + string(info))
 }
