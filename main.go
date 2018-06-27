@@ -13,6 +13,7 @@ import (
 
 	"runtime"
 	"time"
+	"fmt"
 )
 
 func collectRecurse(root string) ([]string, error) {
@@ -89,7 +90,7 @@ func collectHashList() (map[string][]byte, error) {
 	return res, nil
 }
 
-const SSProtoVersion = 1
+const SSProtoVersion uint8 = 1
 
 func main() {
 	log.SetFlags(log.Ldate | log.Ltime | log.LUTC)
@@ -101,6 +102,33 @@ func main() {
 		Crash("Unable to connect to the server:", err.Error())
 	}
 	defer c.Close()
+
+	// Send protocol version and get answer whether we must ask user for update
+	{
+		err := binary.Write(c, binary.LittleEndian, SSProtoVersion)
+		if err != nil {
+			Crash("Unable to send SSProto version:", err.Error())
+		}
+		var answer bool
+		err = binary.Read(c, binary.LittleEndian, answer)
+		if err != nil {
+			Crash("Unable to read server protocol response:", err.Error())
+		}
+		if answer {
+			logInitialize()
+			log.Println("=================================================")
+			log.Println("PROTOCOL UPDATED! PLEASE UPDATE THIS APPLICATION!")
+			log.Println("Download at: https://hexawolf.me/things/")
+			log.Println("=================================================")
+			if runtime.GOOS == "windows" {
+				fmt.Println("You may close this window or it will be closed in 10 minutes.")
+			} else {
+				fmt.Println("Press ctrl+c to close this application. It will be closed in 10 minutes.")
+			}
+			time.Sleep(time.Minute * 10)
+			return
+		}
+	}
 
 	// Generate new UUID/load saved UUID.
 	uuid, err := UUID()
