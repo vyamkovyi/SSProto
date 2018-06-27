@@ -9,13 +9,14 @@ var publicKey [56]byte
 var curve ed448.DecafCurve
 
 func LoadKeys() error {
-	pubEnc := "P4urJQKQBRqXIreG/ZBK606F14YeewR0pHcjHfdnTMDp58cLmE76rEhv3MF1+NeWYhxvOqfvvxU="
+	pubEnc := "X/uLlbPShKzadjbEGjok9fyqeNuVDeG8l6IDcBmxO2MSC2Q82og5cFaY2tGJSaAUmn8nYGmXBEc="
 	publicKeySlice, pubErr := base64.StdEncoding.DecodeString(pubEnc)
 	if pubErr != nil {
 		return pubErr
 	}
 	copy(publicKey[:], publicKeySlice)
 	curve = ed448.NewDecafCurve()
+	return nil
 }
 
 func Verify(data []byte, signature [112]byte) bool {
