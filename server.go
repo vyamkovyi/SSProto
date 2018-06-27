@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"io/ioutil"
 	"encoding/base64"
+	"strings"
 )
 
 func (s *Service) serve(conn *net.TCPConn) {
@@ -128,7 +129,13 @@ func (s *Service) serve(conn *net.TCPConn) {
 		}
 
 		// File path
-		err = binary.Write(conn, binary.LittleEndian, []byte(v))
+		var pathBytes []byte
+		if strings.HasPrefix("client/", v) {
+			pathBytes = []byte(strings.TrimPrefix("client/", v))
+		} else {
+			pathBytes = []byte(v)
+		}
+		err = binary.Write(conn, binary.LittleEndian, pathBytes)
 		if err != nil {
 			log.Println("Stream error:", err.Error())
 			return

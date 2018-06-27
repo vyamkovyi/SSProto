@@ -9,7 +9,7 @@ import (
 	"syscall"
 )
 
-const SSProtoVersion = 1
+const SSProtoVersion uint8 = 1
 const address = "0.0.0.0:48879"
 
 func main() {
