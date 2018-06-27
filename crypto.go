@@ -13,7 +13,7 @@ var publicKey [56]byte
 var curve ed448.DecafCurve
 
 func MakeKeys() error {
-	f, err := os.Create("sss.key")
+	f, err := os.Create("ss.key")
 	if err != nil {
 		return err
 	}

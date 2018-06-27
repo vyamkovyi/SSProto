@@ -19,13 +19,16 @@ func main() {
 	log.Println("SSProto version", SSProtoVersion)
 	log.Println("Copyright (C) Hexawolf  2018")
 
-
 	// See crypto.go
-	if _, err := os.Stat("sss.key"); err != nil {
+	if _, err := os.Stat("ss.key"); err != nil {
 		MakeKeys()
 	} else {
 		LoadKeys()
 	}
+
+	// Prepares served files list
+	// lister.go
+	ListFiles()
 
 	var err error
 	// metrics.go

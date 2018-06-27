@@ -24,7 +24,7 @@ func NewService() *Service {
 // if anything is received on the service's channel.
 func (s *Service) Serve(listener *net.TCPListener) {
 	for {
-		listener.SetDeadline(time.Now().Add(1e9))
+		listener.SetDeadline(time.Now().Add(time.Second * 300))
 		conn, err := listener.AcceptTCP()
 		if nil != err {
 			if opErr, ok := err.(*net.OpError); ok && opErr.Timeout() {

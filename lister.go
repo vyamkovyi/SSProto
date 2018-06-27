@@ -74,7 +74,7 @@ func walkClientFiles(path string, info os.FileInfo, err error) error {
 	return nil
 }
 
-func ListFiles() map[[32]byte]string {
+func ListFiles() {
 	filesMap = make(map[[32]byte]string)
 	listMods()
 	err := filepath.Walk("config/", walkConfigs)
@@ -85,5 +85,4 @@ func ListFiles() map[[32]byte]string {
 	if err != nil {
 		log.Fatalln("Failed to list client files:", err.Error())
 	}
-	return filesMap
 }

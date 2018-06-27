@@ -141,11 +141,7 @@ func (s *Service) serve(conn *net.TCPConn) {
 
 		// File path
 		var pathBytes []byte
-		if strings.HasPrefix("client/", v) {
-			pathBytes = []byte(strings.TrimPrefix("client/", v))
-		} else {
-			pathBytes = []byte(v)
-		}
+		pathBytes = []byte(strings.TrimPrefix(v, "client/"))
 		err = binary.Write(conn, binary.LittleEndian, pathBytes)
 		if err != nil {
 			log.Println("Stream error:", err.Error())
