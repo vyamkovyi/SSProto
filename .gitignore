@@ -23,6 +23,12 @@ _testmain.go
 *.exe
 *.test
 *.prof
+
 .directory
-.idea/
+mods/
+logs/
+config/
+*.key
+*.dat
 ssclient
+.idea/
