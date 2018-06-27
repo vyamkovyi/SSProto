@@ -18,6 +18,17 @@ func (s *Service) serve(conn *net.TCPConn) {
 	conn.SetDeadline(time.Now().Add(time.Second * 600))
 	var size uint64
 
+	// Protocol version
+	{
+		var pv uint8
+		err := binary.Read(conn, binary.LittleEndian, &pv)
+		if err != nil {
+			log.Println("Stream error:", err.Error())
+			return
+		}
+		binary.Write(conn, binary.LittleEndian, pv < SSProtoVersion)
+	}
+
 	// Expecting 32-bytes long identifier
 	data := make([]byte, 32)
 	err := binary.Read(conn, binary.LittleEndian, data)
