@@ -40,7 +40,7 @@ func logRotate() {
 	}
 }
 
-func logInitialize() {
+func LogInitialize() {
 	log.SetFlags(log.Ldate | log.Ltime | log.LUTC)
 	logRotate()
 	logFile, err := os.OpenFile("logs/sss.0.log",
