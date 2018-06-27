@@ -45,7 +45,8 @@ func readString(in io.Reader) (string, error) {
 	return string(buf), nil
 }
 
-func WriteHashList(in map[string][]byte, pipe io.ReadWriter) (map[string]bool, error) {
+func WriteHashList(in map[string][]byte, pipe io.ReadWriter) (map[string]bool,
+															  error) {
 	res := make(map[string]bool)
 	for k, v := range in {
 		_, err := pipe.Write(v)

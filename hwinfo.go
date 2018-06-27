@@ -3,10 +3,7 @@ package main
 import (
 	"os/exec"
 	"runtime"
-	"strings"
 	"syscall"
-	"unicode"
-
 	"github.com/shirou/gopsutil/cpu"
 	"github.com/shirou/gopsutil/mem"
 )
@@ -78,15 +75,11 @@ func getCPUInfo() CPUStat {
 
 func getGPUInfo() string {
 	if runtime.GOOS == "windows" {
-		Info := exec.Command("cmd", "/C", "wmic path win32_VideoController get name")
+		Info := exec.Command("cmd", "/C",
+			"wmic path win32_VideoController get name")
 		Info.SysProcAttr = &syscall.SysProcAttr{}
 		History, _ := Info.Output()
-		return strings.Map(func(r rune) rune {
-			if unicode.IsSpace(r) {
-				return -1
-			}
-			return r
-		}, strings.Replace(string(History), "Name", "", -1))
+		return string(History)
 	}
 	return ""
 }

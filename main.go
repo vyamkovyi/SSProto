@@ -14,8 +14,8 @@ import (
 	"runtime"
 	"time"
 	"fmt"
-	"os/exec"
 	"strings"
+	"os/exec"
 )
 
 func collectRecurse(root string) ([]string, error) {
@@ -77,11 +77,6 @@ func collectHashList() (map[string][]byte, error) {
 	list = append(list, conf...)
 
 	for _, path := range list {
-		//if _, prs := skippedFiles[filepath.ToSlash(path)]; prs {
-		//	log.Println(path, "- IGNORED")
-		//	continue
-		//}
-
 		blob, err := ioutil.ReadFile(path)
 		if err != nil {
 			return nil, err
@@ -108,11 +103,6 @@ func containsString(slice []string, element string) bool {
 	return !(posString(slice, element) == -1)
 }
 
-// askForConfirmation uses Scanln to parse user input. A user must type in "yes" or "no" and
-// then press enter. It has fuzzy matching, so "y", "Y", "yes", "YES", and "Yes" all count as
-// confirmations. If the input is not recognized, it will ask again. The function does not return
-// until it gets a valid response from the user. Typically, you should use fmt to print out a question
-// before calling askForConfirmation. E.g. fmt.Println("WARNING: Are you sure? (yes/no)")
 func askForConfirmation() bool {
 	var response string
 	_, err := fmt.Scanln(&response)
@@ -128,6 +118,23 @@ func askForConfirmation() bool {
 	} else {
 		fmt.Println("Please type yes or no and then press enter:")
 		return askForConfirmation()
+	}
+}
+
+func launchClient() {
+	var com *exec.Cmd = nil
+	if runtime.GOOS == "windows" {
+		com = exec.Command("java -jar libraries\\TLauncher.jar " +
+			"--directory . --settings config\\tlauncher.cfg --profiles " +
+			"config\\tlauncher_profiles.json --version \"Hexamine\"")
+	} else if runtime.GOOS == "linux" {
+		os.Chmod("Launch.sh", 0770)
+		com = exec.Command("java -jar ./libraries/TLauncher.jar " +
+			"--directory ./ --settings ./config/tlauncher.cfg --profiles " +
+			"./config/tlauncher_profiles.json --version \"Hexamine\"")
+	}
+	if com != nil {
+		com.Run()
 	}
 }
 
@@ -159,11 +166,16 @@ func main() {
 
 			if !(checkSecond && checkFirst && checkThird) {
 				fmt.Println()
-				fmt.Println("=================================================================")
-				fmt.Println("! Make sure this application was launched under a new directory !")
-				fmt.Println("=================================================================")
-				fmt.Println("The updater will download files right into current directory. " +
-					"However, it does not looks like an empty directory or existing client. " +
+				fmt.Println("==========================================" +
+					"=======================")
+				fmt.Println("! Make sure this application was launched " +
+					"under a new directory !")
+				fmt.Println("===========================================" +
+					"======================")
+				fmt.Println("The updater will download files right into " +
+					"current directory. " +
+					"However, it does not looks like an empty directory or " +
+					"existing client. " +
 					"You probably don't want to download files here.")
 				fmt.Print("Do you want to proceed? (y/n): ")
 				for !askForConfirmation() {
@@ -192,19 +204,19 @@ func main() {
 			Crash("Unable to read server protocol response:", err.Error())
 		}
 		if answer {
-			logInitialize()
+			c.Close()
 			fmt.Println()
 			fmt.Println("=================================================")
 			fmt.Println("PROTOCOL UPDATED! PLEASE UPDATE THIS APPLICATION!")
 			fmt.Println("Download at: https://hexawolf.me/things/")
 			fmt.Println("=================================================")
 			if runtime.GOOS == "windows" {
-				fmt.Println("You may close this window or it will be closed in 10 minutes.")
+				fmt.Println("You may close this window.")
 			} else {
-				fmt.Println("Press ctrl+c to close this application. It will be closed in 10 minutes.")
+				fmt.Println("Press ctrl+c to close this application.")
 			}
 			time.Sleep(time.Minute * 10)
-			return
+			os.Exit(0)
 		}
 	}
 
@@ -245,6 +257,11 @@ func main() {
 			Crash("Unable to send HWInfo:", err.Error())
 		}
 		log.Println("Sent!")
+	} else {
+		log.Println("Server rejected download request. " +
+			"Simply launching client for now.")
+		defer launchClient()
+		return
 	}
 
 	// Collect hashes of files in config/ and mods/ and send them.
@@ -272,6 +289,8 @@ func main() {
 		}
 	}
 
+	defer launchClient()
+
 	// Apply "changes" request by server - download new files.
 	for {
 		log.Println("Receiving packets...")
@@ -284,7 +303,8 @@ func main() {
 			Crash("Error while receiving delta:", err.Error())
 		}
 		realSum := sha256.Sum256(p.Blob)
-		log.Println("Received file", p.FilePath, "("+hex.EncodeToString(realSum[:])+")")
+		log.Println("Received file", p.FilePath,
+			"("+hex.EncodeToString(realSum[:])+")")
 
 		if !p.Verify() {
 			Crash("Signature check - FAILED!")
@@ -301,20 +321,5 @@ func main() {
 		if err != nil {
 			Crash("Error writing file blob:", err.Error())
 		}
-	}
-
-	var com *exec.Cmd = nil
-	if runtime.GOOS == "windows" {
-		com = exec.Command("java -jar libraries\\TLauncher.jar " +
-			"--directory . --settings config\\tlauncher.cfg --profiles " +
-			"config\\tlauncher_profiles.json --version \"Hexamine\"")
-	} else if runtime.GOOS == "linux" {
-		os.Chmod("Launch.sh", 0770)
-		com = exec.Command("java -jar ./libraries/TLauncher.jar " +
-			"--directory ./ --settings ./config/tlauncher.cfg --profiles " +
-			"./config/tlauncher_profiles.json --version \"Hexamine\"")
-	}
-	if com != nil {
-		com.Run()
 	}
 }
