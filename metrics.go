@@ -1,17 +1,21 @@
 package main
 
 import (
-	"os"
 	"bufio"
 	"strings"
+	"log"
+	"sync"
 )
 
-var machinesFile *os.File
+var mut = &sync.Mutex{}
 
 // Check if machine was already logged
 func searchForMachine(id string) bool {
-	machinesFile.Seek(0, 0)
-	scanner := bufio.NewScanner(machinesFile)
+	mut.Lock()
+	logFile.Seek(0, 0)
+	defer logFile.Seek(0, 2)
+	defer mut.Unlock()
+	scanner := bufio.NewScanner(logFile)
 	for scanner.Scan() {
 		if strings.Contains(scanner.Text(), id) {
 			return true
@@ -21,9 +25,5 @@ func searchForMachine(id string) bool {
 }
 
 func writeMachine(id string, info []byte) {
-	machinesFile.Write([]byte(id))
-	machinesFile.Write([]byte(":"))
-	machinesFile.Write(info)
-	machinesFile.Write([]byte("\n"))
-	machinesFile.Sync()
+	log.Println("HWInfo:", id + ":" + string(info))
 }

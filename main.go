@@ -31,12 +31,7 @@ func main() {
 	ListFiles()
 
 	var err error
-	// metrics.go
-	machinesFile, err = os.OpenFile("machines.dat", os.O_RDWR | os.O_CREATE, 0600)
-	if err != nil {
-		log.Panicln("Failed to initialize storage!")
-	}
-	defer machinesFile.Close()
+	defer logFile.Close()
 
 	laddr, err := net.ResolveTCPAddr("tcp", address)
 	if err != nil {

@@ -8,13 +8,14 @@ import (
 	"sort"
 	"strconv"
 	"io"
+	"github.com/jasonlvhit/gocron"
 )
 
-func logRotate() {
-	files, err := ioutil.ReadDir("logs/")
+func rotate(prefix string, suffix string, directory string) {
+	files, err := ioutil.ReadDir(directory)
 	if err != nil {
 		if os.IsNotExist(err) {
-			err = os.Mkdir("logs/", 0740)
+			err = os.Mkdir(directory, 0740)
 			return
 		} else {
 			log.Fatal(err)
@@ -23,8 +24,8 @@ func logRotate() {
 
 	var logs []string
 	for _, i := range files {
-		if strings.Contains(i.Name(), "sss.") &&
-			strings.Contains(i.Name(), ".log") {
+		if strings.Contains(i.Name(), prefix) &&
+			strings.Contains(i.Name(), suffix) {
 				logs = append(logs, i.Name())
 		}
 	}
@@ -36,18 +37,23 @@ func logRotate() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		os.Rename("logs/" + i, "logs/sss." + strconv.Itoa(num+1) + ".log")
+		os.Rename(directory + i, directory + prefix + strconv.Itoa(num+1) +
+			suffix)
 	}
 }
 
+var logFile *os.File
+
 func LogInitialize() {
 	log.SetFlags(log.Ldate | log.Ltime | log.LUTC)
-	logRotate()
-	logFile, err := os.OpenFile("logs/sss.0.log",
+	rotate("sss.", ".log", "logs/")
+	var err error = nil
+	logFile, err = os.OpenFile("logs/sss.0.log",
 		os.O_CREATE | os.O_APPEND | os.O_WRONLY, 0660)
 	if err != nil {
 		log.Panicln(err)
 	}
 	multiWriter := io.MultiWriter(os.Stdout, logFile)
 	log.SetOutput(multiWriter)
+	
 }
