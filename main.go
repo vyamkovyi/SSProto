@@ -14,6 +14,8 @@ import (
 	"runtime"
 	"time"
 	"fmt"
+	"os/exec"
+	"strings"
 )
 
 func collectRecurse(root string) ([]string, error) {
@@ -90,12 +92,87 @@ func collectHashList() (map[string][]byte, error) {
 	return res, nil
 }
 
+// posString returns the first index of element in slice.
+// If slice does not contain element, returns -1.
+func posString(slice []string, element string) int {
+	for index, elem := range slice {
+		if elem == element {
+			return index
+		}
+	}
+	return -1
+}
+
+// containsString returns true iff slice contains element
+func containsString(slice []string, element string) bool {
+	return !(posString(slice, element) == -1)
+}
+
+// askForConfirmation uses Scanln to parse user input. A user must type in "yes" or "no" and
+// then press enter. It has fuzzy matching, so "y", "Y", "yes", "YES", and "Yes" all count as
+// confirmations. If the input is not recognized, it will ask again. The function does not return
+// until it gets a valid response from the user. Typically, you should use fmt to print out a question
+// before calling askForConfirmation. E.g. fmt.Println("WARNING: Are you sure? (yes/no)")
+func askForConfirmation() bool {
+	var response string
+	_, err := fmt.Scanln(&response)
+	if err != nil {
+		log.Fatal(err)
+	}
+	okayResponses := []string{"y", "Y", "yes", "Yes", "YES"}
+	nokayResponses := []string{"n", "N", "no", "No", "NO"}
+	if containsString(okayResponses, response) {
+		return true
+	} else if containsString(nokayResponses, response) {
+		return false
+	} else {
+		fmt.Println("Please type yes or no and then press enter:")
+		return askForConfirmation()
+	}
+}
+
 const SSProtoVersion uint8 = 1
 
 func main() {
 	log.SetFlags(log.Ldate | log.Ltime | log.LUTC)
 	log.Println("SSProto version:", SSProtoVersion)
 	log.Println("Copyright (C) Hexawolf, foxcpp 2018")
+
+	{
+		files, err := ioutil.ReadDir(".")
+		if err != nil {
+			Crash("Unable to read current directory:", err.Error())
+		}
+		if len(files) > 1 {
+			checkFirst := false
+			checkSecond := false
+			checkThird := false
+			for _, v := range files {
+				if strings.Contains(v.Name(), "versions") {
+					checkFirst = true
+				} else if strings.Contains(v.Name(), "mods") {
+					checkSecond = true
+				} else if strings.Contains(v.Name(), "config") {
+					checkThird = true
+				}
+			}
+
+			if !(checkSecond && checkFirst && checkThird) {
+				fmt.Println()
+				fmt.Println("=================================================================")
+				fmt.Println("! Make sure this application was launched under a new directory !")
+				fmt.Println("=================================================================")
+				fmt.Println("The updater will download files right into current directory. " +
+					"However, it does not looks like an empty directory or existing client. " +
+					"You probably don't want to download files here.")
+				fmt.Print("Do you want to proceed? (y/n): ")
+				for !askForConfirmation() {
+					fmt.Println("Exiting.")
+					return
+				}
+ 			}
+		}
+	}
 
 	c, err := net.Dial("tcp", "doggoat.de:48879")
 	if err != nil {
@@ -116,10 +193,11 @@ func main() {
 		}
 		if answer {
 			logInitialize()
-			log.Println("=================================================")
-			log.Println("PROTOCOL UPDATED! PLEASE UPDATE THIS APPLICATION!")
-			log.Println("Download at: https://hexawolf.me/things/")
-			log.Println("=================================================")
+			fmt.Println()
+			fmt.Println("=================================================")
+			fmt.Println("PROTOCOL UPDATED! PLEASE UPDATE THIS APPLICATION!")
+			fmt.Println("Download at: https://hexawolf.me/things/")
+			fmt.Println("=================================================")
 			if runtime.GOOS == "windows" {
 				fmt.Println("You may close this window or it will be closed in 10 minutes.")
 			} else {
@@ -225,7 +303,18 @@ func main() {
 		}
 	}
 
+	var com *exec.Cmd = nil
 	if runtime.GOOS == "windows" {
-		time.Sleep(time.Second * 4)
+		com = exec.Command("java -jar libraries\\TLauncher.jar " +
+			"--directory . --settings config\\tlauncher.cfg --profiles " +
+			"config\\tlauncher_profiles.json --version \"Hexamine\"")
+	} else if runtime.GOOS == "linux" {
+		os.Chmod("Launch.sh", 0770)
+		com = exec.Command("java -jar ./libraries/TLauncher.jar " +
+			"--directory ./ --settings ./config/tlauncher.cfg --profiles " +
+			"./config/tlauncher_profiles.json --version \"Hexamine\"")
+	}
+	if com != nil {
+		com.Run()
 	}
 }
