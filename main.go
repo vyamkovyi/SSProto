@@ -1,9 +1,9 @@
 package main
 
 import (
-	"net"
-	"log"
 	"fmt"
+	"log"
+	"net"
 	"os"
 	"os/signal"
 	"syscall"
@@ -35,12 +35,12 @@ func main() {
 
 	laddr, err := net.ResolveTCPAddr("tcp", address)
 	if err != nil {
-		log.Panicln("Error listening:", err.Error())
+		log.Panicln("Error listening:", err)
 	}
 
 	l, err := net.ListenTCP("tcp", laddr)
 	if err != nil {
-		log.Panicln("Error listening:", err.Error())
+		log.Panicln("Error listening:", err)
 	}
 	// Close the listener when the application closes.
 	defer l.Close()

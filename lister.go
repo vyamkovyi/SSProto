@@ -1,88 +1,113 @@
 package main
 
 import (
+	"crypto/sha256"
 	"io/ioutil"
 	"log"
-	"path/filepath"
-	"crypto/sha256"
 	"os"
+	"path/filepath"
+	"strings"
 )
 
-var filesMap map[[32]byte]string
+type IndexedFile struct {
+	// Where file is located on server (absolute).
+	ServPath string
+	// Where file should be placed on client (relative to client root directory).
+	ClientPath string
+	Hash       [32]byte
 
-func listMods() {
-	files, err := ioutil.ReadDir("mods/")
+	// If true - file will be not replaced at client if it's already present
+	// (even if changed).
+	ShouldNotReplace bool
+}
+
+var filesMap map[[32]byte]IndexedFile
+
+func fileHash(path string) ([32]byte, error) {
+	blob, err := ioutil.ReadFile(path)
 	if err != nil {
-		log.Fatalln("Failed to read mods directory:", err.Error())
+		return [32]byte{}, err
 	}
-	for _, f := range files {
-		if f.IsDir() {
-			continue
-		}
+	return sha256.Sum256(blob), nil
+}
 
-		fullFileName := "mods/" + f.Name()
-		if filepath.Ext(fullFileName) != ".jar" {
-			continue
-		}
+func allFiles(path string) bool {
+	return !strings.HasPrefix(filepath.Base(path), "ignored_")
+}
+func jarOnly(path string) bool {
+	return filepath.Ext(path) != ".jar" && !strings.HasPrefix(filepath.Base(path), "ignored_")
+}
 
-		s, err := ioutil.ReadFile(fullFileName)
+func index(dir string, recursive bool, excludeFunc func(string) bool, shouldNotReplace bool) ([]IndexedFile, error) {
+	res := []IndexedFile{}
+	walkFn := func(path string, info os.FileInfo, err error) error {
 		if err != nil {
-			log.Fatalln("Failed to read file", fullFileName, ":", err.Error())
+			return err
 		}
-		hash := sha256.Sum256(s)
+		if info.IsDir() {
+			if !recursive {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if excludeFunc(path) {
+			return nil
+		}
 
-		filesMap[hash] = fullFileName
-	}
-}
+		hash, err := fileHash(path)
+		if err != nil {
+			return err
+		}
 
-func walkConfigs(path string, info os.FileInfo, err error) error {
-	if err != nil {
-		log.Fatalln("Failed to read config directory!", err.Error())
-	}
-
-	// TODO: skip unwanted directories and files
-	if info.IsDir() {
+		res = append(res, IndexedFile{path, path, hash, shouldNotReplace})
 		return nil
 	}
-
-	s, err := ioutil.ReadFile(path)
-	if err != nil {
-		log.Fatalln("Failed to read file", path, ":", err.Error())
-	}
-	hash := sha256.Sum256(s)
-
-	filesMap[hash] = path
-	return nil
+	return res, filepath.Walk(dir, walkFn)
 }
 
-func walkClientFiles(path string, info os.FileInfo, err error) error {
+func addFile(servPath, clientPath string, shouldNotReplace bool) error {
+	hash, err := fileHash(servPath)
 	if err != nil {
-		log.Fatalln("Failed to read client files directory!", err.Error())
+		return err
 	}
 
-	if info.IsDir() {
-		return nil
-	}
-
-	s, err := ioutil.ReadFile(path)
-	if err != nil {
-		log.Fatalln("Failed to read file", path, ":", err.Error())
-	}
-	hash := sha256.Sum256(s)
-
-	filesMap[hash] = path
+	filesMap[hash] = IndexedFile{servPath, clientPath, hash, shouldNotReplace}
 	return nil
 }
 
 func ListFiles() {
-	filesMap = make(map[[32]byte]string)
-	listMods()
-	err := filepath.Walk("config/", walkConfigs)
+	filesMap = make(map[[32]byte]IndexedFile)
+
+	// ==> Basic directories setup is here.
+	configs, err := index("config", true, allFiles, false)
 	if err != nil {
-		log.Fatalln("Failed to list configs:", err.Error())
+		log.Println("Failed to read config dir:", err)
 	}
-	err = filepath.Walk("client/", walkClientFiles)
+	mods, err := index("mods", false, jarOnly, false)
 	if err != nil {
-		log.Fatalln("Failed to list client files:", err.Error())
+		log.Println("Failed to read mods dir:", err)
 	}
+	client, err := index("client", true, allFiles, false)
+	if err != nil {
+		log.Println("Failed to read client dir:", err)
+	}
+	clientCfgs, _ := index("client/config", true, allFiles, true)
+
+	// Strip "client/" prefix from client-side paths.
+	for _, part := range [][]IndexedFile{client, clientCfgs} {
+		for i, _ := range part {
+			part[i].ClientPath = part[i].ClientPath[7:]
+		}
+	}
+
+	// Put everything into global table.
+	for _, part := range [][]IndexedFile{configs, mods, client, clientCfgs} {
+		for _, entry := range part {
+			filesMap[entry.Hash] = entry
+		}
+	}
+
+	// ==> Per-file overrides go here. Call addFile for them.
+	addFile("client/options.txt", "options.txt", true)
+	addFile("client/optionsof.txt", "optionsof.txt", true)
 }
