@@ -49,7 +49,7 @@ func LogInitialize() {
 	rotate("sss.", ".log", "logs/")
 	var err error = nil
 	logFile, err = os.OpenFile("logs/sss.0.log",
-		os.O_CREATE | os.O_APPEND | os.O_RDWR, 0660)
+		os.O_CREATE | os.O_RDWR, 0660)
 	if err != nil {
 		log.Panicln(err)
 	}

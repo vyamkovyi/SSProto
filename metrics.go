@@ -9,7 +9,7 @@ import (
 var mut = &sync.Mutex{}
 
 // Check if machine was already logged
-func searchForMachine(id string) bool {
+func machineExists(id string) bool {
 	mut.Lock()
 	logFile.Seek(0, 0)
 	defer logFile.Seek(0, 2)

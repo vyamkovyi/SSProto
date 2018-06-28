@@ -55,25 +55,26 @@ func (s *Service) serve(conn *net.TCPConn) {
 	// Record machine data if it wasn't recorded yet
 	baseEncodedID := base64.StdEncoding.EncodeToString(data)
 	var machineData []byte
-	if !searchForMachine(baseEncodedID) {
-		err = binary.Write(conn, binary.LittleEndian, true)
-		if err != nil {
-			log.Println("Stream error:", err.Error())
-			return
-		}
-		binary.Read(conn, binary.LittleEndian, &size)
-		machineData = make([]byte, size)
-		err = binary.Read(conn, binary.LittleEndian, machineData)
-		if err != nil {
-			log.Println("Stream error:", err.Error())
-			return
-		}
-	} else {
+
+	if machineExists(baseEncodedID) {
 		log.Println("Rejecting connection - already served today.")
 		err = binary.Write(conn, binary.LittleEndian, false)
 		if err != nil {
 			log.Println("Stream error:", err.Error())
 		}
+		return
+	}
+
+	err = binary.Write(conn, binary.LittleEndian, true)
+	if err != nil {
+		log.Println("Stream error:", err.Error())
+		return
+	}
+	binary.Read(conn, binary.LittleEndian, &size)
+	machineData = make([]byte, size)
+	err = binary.Read(conn, binary.LittleEndian, machineData)
+	if err != nil {
+		log.Println("Stream error:", err.Error())
 		return
 	}
 
