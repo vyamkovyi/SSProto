@@ -103,7 +103,7 @@ func (s *Service) serve(conn *net.TCPConn) {
 		}
 
 		// Expect file path
-		data = make([]byte, 32)
+		data = make([]byte, size)
 		err = binary.Read(conn, binary.LittleEndian, data)
 		if err != nil {
 			log.Println("Stream error:", err.Error())
@@ -140,19 +140,21 @@ func (s *Service) serve(conn *net.TCPConn) {
 	for k, v := range tempMap2 {
 		pathForClient := strings.TrimPrefix(v, "client/")
 
-		skip := true
+		skip := false
 
 		for _, clientListedPath := range clientList {
 			if clientListedPath == pathForClient {
+				skip = true
 				if strings.Contains(pathForClient, "authlib") {
 					skip = false
 				}
 				if strings.HasPrefix(pathForClient, "mods") {
 					skip = false
 				}
-				if strings.HasPrefix(pathForClient, "config") &&
-					!strings.HasPrefix(v, "client/") {
+				if !strings.HasPrefix(v, "client/") {
+					if strings.HasPrefix(pathForClient, "config") {
 						skip = false
+					}
 				}
 				break
 			}
@@ -187,14 +189,20 @@ func (s *Service) serve(conn *net.TCPConn) {
 			return
 		}
 
+		// Size of file path
+		pathForClientBytes := []byte(pathForClient)
+		err = binary.Write(conn, binary.LittleEndian,
+			uint64(len(pathForClientBytes)))
+		if err != nil {
+			log.Println("Stream error:", err.Error())
+		}
+
 		// File path
-		pathBytes := []byte(pathForClient)
-		err = binary.Write(conn, binary.LittleEndian, pathBytes)
+		err = binary.Write(conn, binary.LittleEndian, pathForClientBytes)
 		if err != nil {
 			log.Println("Stream error:", err.Error())
 			return
 		}
-		binary.Write(conn, binary.LittleEndian, byte(0))
 
 		// Size of file
 		size = uint64(len(s))
