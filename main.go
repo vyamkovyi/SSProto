@@ -22,7 +22,8 @@ func collectRecurse(root string) ([]string, error) {
 	var res []string = nil
 	walkfn := func(path string, info os.FileInfo, err error) error {
 		if strings.Contains(path, "libraries") {
-			if !strings.Contains(path, "authlib") {
+			if !strings.Contains(path, "authlib") &&
+				!strings.Contains(path, "TLauncher.jar"){
 				return nil
 			}
 		}

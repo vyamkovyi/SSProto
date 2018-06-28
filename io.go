@@ -36,7 +36,7 @@ func WriteHashList(in map[string][]byte, pipe io.ReadWriter) (map[string]bool,
 			return nil, err
 		}
 		bytesPath := []byte(k)
-		err = binary.Write(pipe, binary.LittleEndian, len(bytesPath))
+		err = binary.Write(pipe, binary.LittleEndian, uint64(len(bytesPath)))
 		if err != nil {
 			return nil, err
 		}
@@ -73,18 +73,18 @@ func ReadPacket(in io.Reader) (*Packet, error) {
 	if err != nil {
 		return nil, err
 	}
-	var intSize int
-	err = binary.Read(in, binary.LittleEndian, &intSize)
+	var size uint64
+	err = binary.Read(in, binary.LittleEndian, &size)
 	if err != nil {
 		return nil, err
 	}
-	pathBytes := make([]byte, intSize)
+	pathBytes := make([]byte, size)
 	err = binary.Read(in, binary.LittleEndian, pathBytes)
 	if err != nil {
 		return nil, err
 	}
 	res.FilePath = string(pathBytes)
-	size := uint64(0)
+	size = uint64(0)
 	err = binary.Read(in, binary.LittleEndian, &size)
 	if err != nil {
 		return nil, err
