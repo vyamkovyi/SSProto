@@ -59,22 +59,19 @@ func collectHashList() (map[string][]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	os.MkdirAll("config", 0700)
+	err = os.MkdirAll("config", 0770)
+	if err != nil {
+		return nil, err
+	}
+	err = os.MkdirAll("versions", 0770)
 	if err != nil {
 		return nil, err
 	}
 
-	var list []string
-	mods, err := collectFlat("mods")
+	list, err := collectRecurse(".")
 	if err != nil {
 		return nil, err
 	}
-	list = append(list, mods...)
-	conf, err := collectRecurse("config")
-	if err != nil {
-		return nil, err
-	}
-	list = append(list, conf...)
 
 	for _, path := range list {
 		blob, err := ioutil.ReadFile(path)
@@ -124,14 +121,18 @@ func askForConfirmation() bool {
 func launchClient() {
 	var com *exec.Cmd = nil
 	if runtime.GOOS == "windows" {
+		/*
 		com = exec.Command("java -jar libraries\\TLauncher.jar " +
 			"--directory . --settings config\\tlauncher.cfg --profiles " +
-			"config\\tlauncher_profiles.json --version \"Hexamine\"")
+			"config\\tlauncher_profiles.json --version \"Hexamine\"")*/
+			com = exec.Command("Launch.bat")
 	} else if runtime.GOOS == "linux" {
 		os.Chmod("Launch.sh", 0770)
+		/*
 		com = exec.Command("java -jar ./libraries/TLauncher.jar " +
 			"--directory ./ --settings ./config/tlauncher.cfg --profiles " +
-			"./config/tlauncher_profiles.json --version \"Hexamine\"")
+			"./config/tlauncher_profiles.json --version \"Hexamine\"")*/
+			com = exec.Command("./Launch.sh")
 	}
 	if com != nil {
 		com.Run()
@@ -191,6 +192,7 @@ func main() {
 		Crash("Unable to connect to the server:", err.Error())
 	}
 	defer c.Close()
+	defer time.Sleep(time.Second * 5)
 
 	// Send protocol version and get answer whether we must ask user for update
 	{
@@ -205,13 +207,19 @@ func main() {
 		}
 		if answer {
 			c.Close()
+			filename := ""
+			if runtime.GOOS == "windows" {
+				filename = "Updater.exe"
+			} else if runtime.GOOS == "linux" {
+				filename = "Updater"
+			}
 			fmt.Println()
 			fmt.Println("=================================================")
 			fmt.Println("PROTOCOL UPDATED! PLEASE UPDATE THIS APPLICATION!")
-			fmt.Println("Download at: https://hexawolf.me/things/")
+			fmt.Println("Download at https://hexawolf.me/hexamine/" + filename)
 			fmt.Println("=================================================")
 			if runtime.GOOS == "windows" {
-				fmt.Println("You may close this window.")
+				fmt.Println("You may now close this window.")
 			} else {
 				fmt.Println("Press ctrl+c to close this application.")
 			}
@@ -260,7 +268,8 @@ func main() {
 	} else {
 		log.Println("Server rejected download request. " +
 			"Simply launching client for now.")
-		defer launchClient()
+		launchClient()
+
 		return
 	}
 
@@ -278,7 +287,7 @@ func main() {
 	// Apply "changes" requested by server - delete excess files.
 	for k, v := range resp {
 		if !v {
-			if filepath.Dir(k) == "config" {
+			if filepath.Dir(k) != "mods" {
 				log.Println(k, "- IGNORED")
 			} else {
 				log.Println(k, "- DELETE")
@@ -289,8 +298,6 @@ func main() {
 		}
 	}
 
-	defer launchClient()
-
 	// Apply "changes" request by server - download new files.
 	for {
 		log.Println("Receiving packets...")
@@ -298,6 +305,7 @@ func main() {
 		if err != nil {
 			if err == io.EOF {
 				log.Println("Connection closed.")
+				launchClient()
 				return
 			}
 			Crash("Error while receiving delta:", err.Error())
