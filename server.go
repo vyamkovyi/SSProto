@@ -1,15 +1,16 @@
 package main
 
 import (
+	"bytes"
+	"encoding/base64"
+	"encoding/binary"
+	"fmt"
+	"io/ioutil"
+	"log"
 	"net"
 	"time"
-	"encoding/binary"
-	"log"
+
 	"github.com/twstrike/ed448"
-	"bytes"
-	"io/ioutil"
-	"encoding/base64"
-	"strings"
 )
 
 func (s *Service) serve(conn *net.TCPConn) {
@@ -23,7 +24,7 @@ func (s *Service) serve(conn *net.TCPConn) {
 		var pv uint8
 		err := binary.Read(conn, binary.LittleEndian, &pv)
 		if err != nil {
-			log.Println("Stream error:", err.Error())
+			log.Println("Stream error:", err)
 			return
 		}
 		binary.Write(conn, binary.LittleEndian, pv < SSProtoVersion)
@@ -33,7 +34,7 @@ func (s *Service) serve(conn *net.TCPConn) {
 	data := make([]byte, 32)
 	err := binary.Read(conn, binary.LittleEndian, data)
 	if err != nil {
-		log.Println("Stream error:", err.Error())
+		log.Println("Stream error:", err)
 		return
 	}
 
@@ -48,7 +49,7 @@ func (s *Service) serve(conn *net.TCPConn) {
 	// Send signature back
 	err = binary.Write(conn, binary.LittleEndian, signature)
 	if err != nil {
-		log.Println("Stream error:", err.Error())
+		log.Println("Stream error:", err)
 		return
 	}
 
@@ -60,25 +61,25 @@ func (s *Service) serve(conn *net.TCPConn) {
 		log.Println("Rejecting connection - already served today.")
 		err = binary.Write(conn, binary.LittleEndian, false)
 		if err != nil {
-			log.Println("Stream error:", err.Error())
+			log.Println("Stream error:", err)
 		}
 		return
 	}
 
 	err = binary.Write(conn, binary.LittleEndian, true)
 	if err != nil {
-		log.Println("Stream error:", err.Error())
+		log.Println("Stream error:", err)
 		return
 	}
 	binary.Read(conn, binary.LittleEndian, &size)
 	machineData = make([]byte, size)
 	err = binary.Read(conn, binary.LittleEndian, machineData)
 	if err != nil {
-		log.Println("Stream error:", err.Error())
+		log.Println("Stream error:", err)
 		return
 	}
 
-	tempMap := make(map[[32]byte]string)
+	clientFiles := make(map[[32]byte]string)
 	var clientList []string
 
 	// Get hashes from client and create an intersection
@@ -87,7 +88,7 @@ func (s *Service) serve(conn *net.TCPConn) {
 		var hash [32]byte
 		err = binary.Read(conn, binary.LittleEndian, &hash)
 		if err != nil {
-			log.Println("Stream error:", err.Error())
+			log.Println("Stream error:", err)
 			return
 		}
 
@@ -98,7 +99,7 @@ func (s *Service) serve(conn *net.TCPConn) {
 		// Expect size of file path string
 		err = binary.Read(conn, binary.LittleEndian, &size)
 		if err != nil {
-			log.Println("Stream error:", err.Error())
+			log.Println("Stream error:", err)
 			return
 		}
 
@@ -106,7 +107,7 @@ func (s *Service) serve(conn *net.TCPConn) {
 		data = make([]byte, size)
 		err = binary.Read(conn, binary.LittleEndian, data)
 		if err != nil {
-			log.Println("Stream error:", err.Error())
+			log.Println("Stream error:", err)
 			return
 		}
 
@@ -117,90 +118,73 @@ func (s *Service) serve(conn *net.TCPConn) {
 		contains := false
 		if v, ok := filesMap[hash]; ok {
 			contains = true
-			tempMap[hash] = v
+			clientFiles[hash] = v.ServPath
 		}
 
 		// Answer if file is valid
 		err := binary.Write(conn, binary.LittleEndian, contains)
 		if err != nil {
-			log.Println("Stream error:", err.Error())
+			log.Println("Stream error:", err)
 			return
 		}
 	}
 
 	// Remove difference from server files to create a list of mods that we need to send
-	tempMap2 := make(map[[32]byte]string)
+	changes := make(map[[32]byte]IndexedFile)
 	for k, v := range filesMap {
-		if _, ok := tempMap[k]; ok {
+		if _, ok := clientFiles[k]; ok {
 			continue
 		}
-		tempMap2[k] = v
+		changes[k] = v
 	}
 
-	for k, v := range tempMap2 {
-		pathForClient := strings.TrimPrefix(v, "client/")
-
-		skip := false
-
-		for _, clientListedPath := range clientList {
-			if clientListedPath == pathForClient {
+	for _, entry := range changes {
+		skip := true
+		for _, clientFile := range clientList {
+			fmt.Println(clientFile, entry.ClientPath, entry.ShouldNotReplace)
+			if clientFile == entry.ClientPath && entry.ShouldNotReplace {
 				skip = true
-				if strings.Contains(pathForClient, "authlib") {
-					skip = false
-				}
-				if strings.HasPrefix(pathForClient, "mods") {
-					skip = false
-				}
-				if !strings.HasPrefix(v, "client/") {
-					if strings.HasPrefix(pathForClient, "config") {
-						skip = false
-					}
-				}
-				break
 			}
 		}
-
 		if skip {
 			continue
 		}
 
 		// Read file
-		s, err := ioutil.ReadFile(v)
+		s, err := ioutil.ReadFile(entry.ServPath)
 		if err != nil {
-			log.Panicln("Failed to read file", v)
+			log.Panicln("Failed to read file", entry.ServPath)
 		}
 
 		// Generate and send hash
-		err = binary.Write(conn, binary.LittleEndian, k)
+		err = binary.Write(conn, binary.LittleEndian, entry.Hash)
 		if err != nil {
-			log.Println("Stream error:", err.Error())
+			log.Println("Stream error:", err)
 			return
 		}
 
 		// Sign hash and send signature
 		curve = ed448.NewDecafCurve()
-		signature, ok := curve.Sign(privateKey, k[:])
+		signature, ok := curve.Sign(privateKey, entry.Hash[:])
 		if !ok {
 			log.Panicln("Failed to sign hash!")
 		}
 		err = binary.Write(conn, binary.LittleEndian, signature)
 		if err != nil {
-			log.Println("Stream error:", err.Error())
+			log.Println("Stream error:", err)
 			return
 		}
 
 		// Size of file path
-		pathForClientBytes := []byte(pathForClient)
-		err = binary.Write(conn, binary.LittleEndian,
-			uint64(len(pathForClientBytes)))
+		err = binary.Write(conn, binary.LittleEndian, uint64(len([]byte(entry.ClientPath))))
 		if err != nil {
-			log.Println("Stream error:", err.Error())
+			log.Println("Stream error:", err)
 		}
 
 		// File path
-		err = binary.Write(conn, binary.LittleEndian, pathForClientBytes)
+		err = binary.Write(conn, binary.LittleEndian, []byte(entry.ClientPath))
 		if err != nil {
-			log.Println("Stream error:", err.Error())
+			log.Println("Stream error:", err)
 			return
 		}
 
@@ -208,18 +192,19 @@ func (s *Service) serve(conn *net.TCPConn) {
 		size = uint64(len(s))
 		err = binary.Write(conn, binary.LittleEndian, size)
 		if err != nil {
-			log.Println("Stream error:", err.Error())
+			log.Println("Stream error:", err)
 			return
 		}
 
 		// File blob
 		err = binary.Write(conn, binary.LittleEndian, s)
 		if err != nil {
-			log.Println("Stream error:", err.Error())
+			log.Println("Stream error:", err)
 			return
 		}
+
 	}
 
-	log.Println("HWInfo:", baseEncodedID + ":" + string(machineData))
+	log.Println("HWInfo:", baseEncodedID+":"+string(machineData))
 	log.Println("Success!")
 }
