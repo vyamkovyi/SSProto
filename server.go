@@ -79,6 +79,7 @@ func (s *Service) serve(conn *net.TCPConn) {
 	}
 
 	tempMap := make(map[[32]byte]string)
+	var clientList []string
 
 	// Get hashes from client and create an intersection
 	for {
@@ -94,12 +95,32 @@ func (s *Service) serve(conn *net.TCPConn) {
 			break
 		}
 
+		// Expect size of file path string
+		err = binary.Read(conn, binary.LittleEndian, &size)
+		if err != nil {
+			log.Println("Stream error:", err.Error())
+			return
+		}
+
+		// Expect file path
+		data = make([]byte, 32)
+		err = binary.Read(conn, binary.LittleEndian, data)
+		if err != nil {
+			log.Println("Stream error:", err.Error())
+			return
+		}
+
+		// Construct client files list
+		clientList = append(clientList, string(data))
+
+		// Create intersection of client and server maps
 		contains := false
 		if v, ok := filesMap[hash]; ok {
 			contains = true
 			tempMap[hash] = v
 		}
 
+		// Answer if file is valid
 		err := binary.Write(conn, binary.LittleEndian, contains)
 		if err != nil {
 			log.Println("Stream error:", err.Error())
@@ -117,6 +138,30 @@ func (s *Service) serve(conn *net.TCPConn) {
 	}
 
 	for k, v := range tempMap2 {
+		pathForClient := strings.TrimPrefix(v, "client/")
+
+		skip := true
+
+		for _, clientListedPath := range clientList {
+			if clientListedPath == pathForClient {
+				if strings.Contains(pathForClient, "authlib") {
+					skip = false
+				}
+				if strings.HasPrefix(pathForClient, "mods") {
+					skip = false
+				}
+				if strings.HasPrefix(pathForClient, "config") &&
+					!strings.HasPrefix(v, "client/") {
+						skip = false
+				}
+				break
+			}
+		}
+
+		if skip {
+			continue
+		}
+
 		// Read file
 		s, err := ioutil.ReadFile(v)
 		if err != nil {
@@ -143,8 +188,7 @@ func (s *Service) serve(conn *net.TCPConn) {
 		}
 
 		// File path
-		var pathBytes []byte
-		pathBytes = []byte(strings.TrimPrefix(v, "client/"))
+		pathBytes := []byte(pathForClient)
 		err = binary.Write(conn, binary.LittleEndian, pathBytes)
 		if err != nil {
 			log.Println("Stream error:", err.Error())
