@@ -26,6 +26,9 @@ func collectRecurse(root string) ([]string, error) {
 				return nil
 			}
 		}
+		if strings.HasPrefix(info.Name(), "ignore_")  {
+			return nil
+		}
 		if strings.Contains(path, "assets") ||
 			strings.Contains(path, "saves") ||
 			strings.Contains(path, "screenshots") {
