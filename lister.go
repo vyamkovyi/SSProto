@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 type IndexedFile struct {
@@ -31,10 +32,10 @@ func fileHash(path string) ([32]byte, error) {
 }
 
 func allFiles(path string) bool {
-	return false
+	return !strings.HasPrefix(filepath.Base(path), "ignored_")
 }
 func jarOnly(path string) bool {
-	return filepath.Ext(path) != ".jar"
+	return filepath.Ext(path) != ".jar" && !strings.HasPrefix(filepath.Base(path), "ignored_")
 }
 
 func index(dir string, recursive bool, excludeFunc func(string) bool, shouldNotReplace bool) ([]IndexedFile, error) {
