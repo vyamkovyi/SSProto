@@ -11,36 +11,44 @@ import (
 	"os"
 	"path/filepath"
 
-	"runtime"
-	"time"
 	"fmt"
-	"strings"
 	"os/exec"
+	"runtime"
+	"strings"
+	"time"
 )
 
+var excludedGlob = []string{
+	"ignore_*",
+	"assets",
+	"screenshots",
+}
+
+func shouldExclude(path string) bool {
+	for _, pattern := range excludedGlob {
+		if match, _ := filepath.Match(pattern, path); match {
+			return false
+		}
+	}
+	return true
+}
+
 func collectRecurse(root string) ([]string, error) {
-	var res []string = nil
+	res := []string{}
 	walkfn := func(path string, info os.FileInfo, err error) error {
-		if strings.Contains(path, "libraries") {
-			if !strings.Contains(path, "authlib") &&
-				!strings.Contains(path, "TLauncher.jar"){
-				return nil
-			}
-		}
-		if strings.HasPrefix(info.Name(), "ignore_")  {
-			return nil
-		}
-		if strings.Contains(path, "assets") ||
-			strings.Contains(path, "saves") ||
-			strings.Contains(path, "screenshots") {
-				return nil
-		}
 		if err != nil {
 			return err
 		}
 		if info.IsDir() {
+			if shouldExclude(path) {
+				return filepath.SkipDir
+			}
 			return nil
 		}
+		if shouldExclude(path) {
+			return nil
+		}
+
 		res = append(res, path)
 		return nil
 	}
@@ -104,18 +112,10 @@ func askForConfirmation() bool {
 func launchClient() {
 	var com *exec.Cmd = nil
 	if runtime.GOOS == "windows" {
-		/*
-		com = exec.Command("java -jar libraries\\TLauncher.jar " +
-			"--directory . --settings config\\tlauncher.cfg --profiles " +
-			"config\\tlauncher_profiles.json --version \"Hexamine\"")*/
-			com = exec.Command("Launch.bat")
+		com = exec.Command("Launch.bat")
 	} else if runtime.GOOS == "linux" {
 		os.Chmod("Launch.sh", 0770)
-		/*
-		com = exec.Command("java -jar ./libraries/TLauncher.jar " +
-			"--directory ./ --settings ./config/tlauncher.cfg --profiles " +
-			"./config/tlauncher_profiles.json --version \"Hexamine\"")*/
-			com = exec.Command("./Launch.sh")
+		com = exec.Command("./Launch.sh")
 	}
 	if com != nil {
 		com.Run()
@@ -150,23 +150,16 @@ func main() {
 
 			if !(checkSecond && checkFirst && checkThird) {
 				fmt.Println()
-				fmt.Println("==========================================" +
-					"=======================")
-				fmt.Println("! Make sure this application was launched " +
-					"under a new directory !")
-				fmt.Println("===========================================" +
-					"======================")
-				fmt.Println("The updater will download files right into " +
-					"current directory. " +
-					"However, it does not looks like an empty directory or " +
-					"existing client. " +
-					"You probably don't want to download files here.")
+				fmt.Println("=================================================================")
+				fmt.Println("! Make sure this application was launched under a new directory !")
+				fmt.Println("=================================================================")
+				fmt.Println("The updater will download files right into current directory. However, it does not looks like an empty directory or existing client. You probably don't want to download files here.")
 				fmt.Print("Do you want to proceed? (y/n): ")
 				for !askForConfirmation() {
 					fmt.Println("Exiting.")
 					return
 				}
- 			}
+			}
 		}
 
 		os.MkdirAll("mods", 0770)
@@ -235,7 +228,7 @@ func main() {
 	c.Read(uuidSig[:])
 	valid := Verify(uuid, uuidSig)
 	if !valid {
-		Crash("Invalid UUID signature received", err.Error())
+		Crash("Invalid UUID signature received")
 	}
 	log.Println("Valid UUID signature received.")
 

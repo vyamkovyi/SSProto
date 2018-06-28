@@ -18,5 +18,5 @@ func logInitialize() {
 
 func Crash(data ...interface{}) {
 	logInitialize()
-	log.Panicln(data)
+	log.Fatalln(data...)
 }
