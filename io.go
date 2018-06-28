@@ -27,24 +27,6 @@ func WriteHWInfo(out io.Writer) error {
 	return err
 }
 
-func readString(in io.Reader) (string, error) {
-	var buf []byte
-	b := make([]byte, 1)
-	for {
-		_, err := in.Read(b)
-		if err != nil {
-			return "", err
-		}
-
-		if b[0] == byte(0x00) {
-			break
-		}
-
-		buf = append(buf, b[0])
-	}
-	return string(buf), nil
-}
-
 func WriteHashList(in map[string][]byte, pipe io.ReadWriter) (map[string]bool,
 															  error) {
 	res := make(map[string]bool)
@@ -74,18 +56,25 @@ type Packet struct {
 
 func ReadPacket(in io.Reader) (*Packet, error) {
 	res := new(Packet)
-	_, err := in.Read(res.Hash[:])
+	err := binary.Read(in, binary.LittleEndian, &res.Hash)
 	if err != nil {
 		return nil, err
 	}
-	_, err = in.Read(res.Signature[:])
+	err = binary.Read(in, binary.LittleEndian, &res.Signature)
 	if err != nil {
 		return nil, err
 	}
-	res.FilePath, err = readString(in)
+	var intSize int
+	err = binary.Read(in, binary.LittleEndian, &intSize)
 	if err != nil {
 		return nil, err
 	}
+	pathBytes := make([]byte, intSize)
+	err = binary.Read(in, binary.LittleEndian, pathBytes)
+	if err != nil {
+		return nil, err
+	}
+	res.FilePath = string(pathBytes)
 	size := uint64(0)
 	err = binary.Read(in, binary.LittleEndian, &size)
 	if err != nil {
