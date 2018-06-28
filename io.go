@@ -31,7 +31,16 @@ func WriteHashList(in map[string][]byte, pipe io.ReadWriter) (map[string]bool,
 															  error) {
 	res := make(map[string]bool)
 	for k, v := range in {
-		_, err := pipe.Write(v)
+		err := binary.Write(pipe, binary.LittleEndian, v)
+		if err != nil {
+			return nil, err
+		}
+		bytesPath := []byte(k)
+		err = binary.Write(pipe, binary.LittleEndian, len(bytesPath))
+		if err != nil {
+			return nil, err
+		}
+		err = binary.Write(pipe, binary.LittleEndian, bytesPath)
 		if err != nil {
 			return nil, err
 		}
