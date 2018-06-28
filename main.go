@@ -44,36 +44,8 @@ func collectRecurse(root string) ([]string, error) {
 	return res, err
 }
 
-func collectFlat(root string) ([]string, error) {
-	var res []string
-	dirl, err := ioutil.ReadDir(root)
-	if err != nil {
-		return nil, err
-	}
-	for _, info := range dirl {
-		if info.IsDir() {
-			continue
-		}
-		res = append(res, filepath.Join(root, info.Name()))
-	}
-	return res, nil
-}
-
 func collectHashList() (map[string][]byte, error) {
 	res := make(map[string][]byte)
-
-	err := os.MkdirAll("mods", 0770)
-	if err != nil {
-		return nil, err
-	}
-	err = os.MkdirAll("config", 0770)
-	if err != nil {
-		return nil, err
-	}
-	err = os.MkdirAll("versions", 0770)
-	if err != nil {
-		return nil, err
-	}
 
 	list, err := collectRecurse(".")
 	if err != nil {
@@ -192,6 +164,10 @@ func main() {
 				}
  			}
 		}
+
+		os.MkdirAll("mods", 0770)
+		os.MkdirAll("config", 0770)
+		os.MkdirAll("versions", 0770)
 	}
 
 	c, err := net.Dial("tcp", "doggoat.de:48879")
