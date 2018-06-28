@@ -22,6 +22,7 @@ var excludedGlob = []string{
 	"ignore_*",
 	"assets",
 	"screenshots",
+    "saves",
 }
 
 func shouldExclude(path string) bool {
