@@ -22,16 +22,17 @@ var excludedGlob = []string{
 	"ignore_*",
 	"assets",
 	"screenshots",
-    "saves",
+	"saves",
+	"library",
 }
 
 func shouldExclude(path string) bool {
 	for _, pattern := range excludedGlob {
 		if match, _ := filepath.Match(pattern, path); match {
-			return false
+			return true
 		}
 	}
-	return true
+	return false
 }
 
 func collectRecurse(root string) ([]string, error) {
@@ -64,6 +65,8 @@ func collectHashList() (map[string][]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	list = append(list, filepath.ToSlash("libraries/com/mojang/authlib/1.5.25/authlib-1.5.25.jar"))
 
 	for _, path := range list {
 		blob, err := ioutil.ReadFile(path)
