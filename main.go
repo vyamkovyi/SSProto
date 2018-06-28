@@ -273,7 +273,8 @@ func main() {
 	// Apply "changes" requested by server - delete excess files.
 	for k, v := range resp {
 		if !v {
-			if filepath.Dir(k) != "mods" {
+			if filepath.Dir(k) != "mods" ||
+				strings.Contains(k, "ignored_") {
 				log.Println(k, "- IGNORED")
 			} else {
 				log.Println(k, "- DELETE")
