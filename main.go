@@ -19,8 +19,18 @@ import (
 )
 
 func collectRecurse(root string) ([]string, error) {
-	var res []string
+	var res []string = nil
 	walkfn := func(path string, info os.FileInfo, err error) error {
+		if strings.Contains(path, "libraries") {
+			if !strings.Contains(path, "authlib") {
+				return nil
+			}
+		}
+		if strings.Contains(path, "assets") ||
+			strings.Contains(path, "saves") ||
+			strings.Contains(path, "screenshots") {
+				return nil
+		}
 		if err != nil {
 			return err
 		}
@@ -31,10 +41,7 @@ func collectRecurse(root string) ([]string, error) {
 		return nil
 	}
 	err := filepath.Walk(root, walkfn)
-	if err != nil {
-		return nil, err
-	}
-	return res, nil
+	return res, err
 }
 
 func collectFlat(root string) ([]string, error) {
