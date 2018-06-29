@@ -66,7 +66,10 @@ func collectHashList() (map[string][]byte, error) {
 		return nil, err
 	}
 
-	list = append(list, filepath.ToSlash("libraries/com/mojang/authlib/1.5.25/authlib-1.5.25.jar"))
+	authlib := "libraries/com/mojang/authlib/1.5.25/authlib-1.5.25.jar"
+	if fileExists(authlib) {
+		list = append(list, filepath.ToSlash(authlib))
+	}
 
 	for _, path := range list {
 		blob, err := ioutil.ReadFile(path)
