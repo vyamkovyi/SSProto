@@ -174,7 +174,8 @@ func main() {
 		fmt.Println("=================================================================")
 		fmt.Println("! Make sure this application was launched under a new directory !")
 		fmt.Println("=================================================================")
-		fmt.Println("The updater will download files right into current directory. However, it does not looks like an empty directory or existing client. You probably don't want to download files here.")
+		fmt.Println("The updater will download files right into current directory.")
+		fmt.Println("However, it does not looks like an empty directory or existing client. You probably don't want to download files here.")
 		fmt.Print("Do you want to proceed? (y/n): ")
 		for !askForConfirmation() {
 			fmt.Println("Exiting.")
@@ -261,7 +262,6 @@ func main() {
 		fmt.Println("Server rejected download request. " +
 			"Simply launching client for now.")
 		launchClient()
-
 		return
 	}
 
