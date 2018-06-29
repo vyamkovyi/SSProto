@@ -35,7 +35,7 @@ func shouldExclude(path string) bool {
 }
 
 func collectRecurse(root string) ([]string, error) {
-	res := []string{}
+	var res []string
 	walkfn := func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
