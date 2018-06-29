@@ -263,24 +263,30 @@ func main() {
 		Crash("Unable to create hash list of files:", err.Error())
 	}
 	log.Println("Sending information about", len(list), "files...")
-	resp, err := WriteHashList(list, c)
-	if err != nil {
-		Crash("Unable to send information about files:", err.Error())
-	}
 
 	// Apply "changes" requested by server - delete excess files.
-	for k, v := range resp {
-		if !v {
-			if filepath.Dir(k) != "mods" ||
-				strings.Contains(k, "ignored_") {
-				log.Println(k, "- IGNORED")
+	for k, v := range list {
+		fmt.Print(k)
+		resp, err := SendHashListEntry(c, k, v)
+		if err != nil {
+			fmt.Println(" - FAIL:", err)
+			Crash("Failed to send info about", k+":", err)
+		}
+
+		if !resp {
+			if filepath.Dir(k) != "mods" {
+				fmt.Println(" - IGNORED")
 			} else {
-				log.Println(k, "- DELETE")
+				fmt.Println(" - DELETE")
 				os.Remove(k)
 			}
 		} else {
-			log.Println(k, "- OK")
+			log.Println(" - OK")
 		}
+	}
+	err = FinishHashList(c)
+	if err != nil {
+		Crash("Failed to send hashlist terminator:", err)
 	}
 
 	// Apply "changes" request by server - download new files.
