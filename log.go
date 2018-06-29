@@ -1,22 +1,19 @@
 package main
 
 import (
-	"io"
 	"log"
 	"os"
+	"io"
 )
 
-func logInitialize() {
+func Crash(data ...interface{}) {
+	log.SetFlags(log.Ldate | log.Ltime | log.LUTC)
 	logFile, err := os.OpenFile("ss-error.log",
-		os.O_CREATE|os.O_CREATE|os.O_WRONLY, 0660)
+		os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0660)
 	if err != nil {
 		log.Panicln(err)
 	}
 	multiWriter := io.MultiWriter(os.Stdout, logFile)
 	log.SetOutput(multiWriter)
-}
-
-func Crash(data ...interface{}) {
-	logInitialize()
 	log.Fatalln(data...)
 }

@@ -6,12 +6,11 @@ import (
 	"encoding/hex"
 	"io"
 	"io/ioutil"
-	"log"
+	"fmt"
 	"net"
 	"os"
 	"path/filepath"
 
-	"fmt"
 	"os/exec"
 	"runtime"
 	"strings"
@@ -102,7 +101,7 @@ func askForConfirmation() bool {
 	var response string
 	_, err := fmt.Scanln(&response)
 	if err != nil {
-		log.Fatal(err)
+		Crash(err)
 	}
 	okayResponses := []string{"y", "Y", "yes", "Yes", "YES"}
 	nokayResponses := []string{"n", "N", "no", "No", "NO"}
@@ -132,9 +131,8 @@ func launchClient() {
 const SSProtoVersion uint8 = 1
 
 func main() {
-	log.SetFlags(log.Ldate | log.Ltime | log.LUTC)
-	log.Println("SSProto version:", SSProtoVersion)
-	log.Println("Copyright (C) Hexawolf, foxcpp 2018")
+	fmt.Println("SSProto version:", SSProtoVersion)
+	fmt.Println("Copyright (C) Hexawolf, foxcpp 2018")
 
 	{
 		files, err := ioutil.ReadDir(".")
@@ -221,7 +219,7 @@ func main() {
 		Crash("Error while loading UUID:", err.Error())
 	}
 	// Send it.
-	log.Println("Sending UUID...")
+	fmt.Println("Sending UUID...")
 	_, err = c.Write(uuid)
 	if err != nil {
 		Crash("Unable to send UUID", err.Error())
@@ -230,14 +228,14 @@ func main() {
 	// Load hardcoded key.
 	LoadKeys()
 	// Read & verify signature for UUID.
-	log.Println("Reading signature...")
+	fmt.Println("Reading signature...")
 	uuidSig := [112]byte{}
 	c.Read(uuidSig[:])
 	valid := Verify(uuid, uuidSig)
 	if !valid {
 		Crash("Invalid UUID signature received")
 	}
-	log.Println("Valid UUID signature received.")
+	fmt.Println("Valid UUID signature received.")
 
 	// Send hardware information if necessary.
 	shouldSend := false
@@ -246,14 +244,14 @@ func main() {
 		Crash("Unable to read metrics byte from stream:", err)
 	}
 	if shouldSend {
-		log.Print("Sending HW info... ")
+		fmt.Print("Sending HW info... ")
 		err = WriteHWInfo(c)
 		if err != nil {
 			Crash("Unable to send HWInfo:", err.Error())
 		}
-		log.Println("Sent!")
+		fmt.Println("Sent!")
 	} else {
-		log.Println("Server rejected download request. " +
+		fmt.Println("Server rejected download request. " +
 			"Simply launching client for now.")
 		launchClient()
 
@@ -265,7 +263,7 @@ func main() {
 	if err != nil {
 		Crash("Unable to create hash list of files:", err.Error())
 	}
-	log.Println("Sending information about", len(list), "files...")
+	fmt.Println("Sending information about", len(list), "files...")
 
 	// Apply "changes" requested by server - delete excess files.
 	for k, v := range list {
@@ -284,7 +282,7 @@ func main() {
 				os.Remove(k)
 			}
 		} else {
-			log.Println(" - OK")
+			fmt.Println(" - OK")
 		}
 	}
 	err = FinishHashList(c)
@@ -294,24 +292,24 @@ func main() {
 
 	// Apply "changes" request by server - download new files.
 	for {
-		log.Println("Receiving packets...")
+		fmt.Println("Receiving packets...")
 		p, err := ReadPacket(c)
 		if err != nil {
 			if err == io.EOF {
-				log.Println("Connection closed.")
+				fmt.Println("Connection closed.")
 				launchClient()
 				return
 			}
 			Crash("Error while receiving delta:", err.Error())
 		}
 		realSum := sha256.Sum256(p.Blob)
-		log.Println("Received file", p.FilePath,
+		fmt.Println("Received file", p.FilePath,
 			"("+hex.EncodeToString(realSum[:])+")")
 
 		if !p.Verify() {
 			Crash("Signature check - FAILED!")
 		}
-		log.Println("Signature check - OK.")
+		fmt.Println("Signature check - OK.")
 
 		// Ensure all directories exist.
 		err = os.MkdirAll(filepath.Dir(p.FilePath), 0770)
