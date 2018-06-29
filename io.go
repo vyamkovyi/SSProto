@@ -27,33 +27,29 @@ func WriteHWInfo(out io.Writer) error {
 	return err
 }
 
-func WriteHashList(in map[string][]byte, pipe io.ReadWriter) (map[string]bool,
-															  error) {
-	res := make(map[string]bool)
-	for k, v := range in {
-		err := binary.Write(pipe, binary.LittleEndian, v)
-		if err != nil {
-			return nil, err
-		}
-		bytesPath := []byte(k)
-		err = binary.Write(pipe, binary.LittleEndian, uint64(len(bytesPath)))
-		if err != nil {
-			return nil, err
-		}
-		err = binary.Write(pipe, binary.LittleEndian, bytesPath)
-		if err != nil {
-			return nil, err
-		}
-		resp := false
-		err = binary.Read(pipe, binary.LittleEndian, &resp)
-		if err != nil {
-			return nil, err
-		}
-		res[k] = resp
+func SendHashListEntry(pipe io.ReadWriter, path string, hash []byte) (bool, error) {
+	err := binary.Write(pipe, binary.LittleEndian, hash)
+	if err != nil {
+		return false, err
 	}
+	bytesPath := []byte(path)
+	err = binary.Write(pipe, binary.LittleEndian, uint64(len(bytesPath)))
+	if err != nil {
+		return false, err
+	}
+	err = binary.Write(pipe, binary.LittleEndian, bytesPath)
+	if err != nil {
+		return false, err
+	}
+	resp := false
+	err = binary.Read(pipe, binary.LittleEndian, &resp)
+	return resp, err
+}
+
+func FinishHashList(pipe io.ReadWriter) error {
 	zeroes := [32]byte{}
 	_, err := pipe.Write(zeroes[:])
-	return res, err
+	return err
 }
 
 type Packet struct {
