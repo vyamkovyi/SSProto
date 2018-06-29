@@ -10,6 +10,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"regexp"
 
 	"fmt"
 	"os/exec"
@@ -19,7 +20,7 @@ import (
 )
 
 var excludedGlob = []string{
-	"ignore_*",
+	"/?ignored_*",
 	"assets",
 	"screenshots",
 	"saves",
@@ -28,7 +29,7 @@ var excludedGlob = []string{
 
 func shouldExclude(path string) bool {
 	for _, pattern := range excludedGlob {
-		if match, _ := filepath.Match(pattern, path); match {
+		if match, _ := regexp.MatchString(pattern, filepath.ToSlash(path)); match {
 			return true
 		}
 	}
@@ -284,7 +285,7 @@ func main() {
 				os.Remove(k)
 			}
 		} else {
-			log.Println(" - OK")
+			fmt.Println(" - OK")
 		}
 	}
 	err = FinishHashList(c)
