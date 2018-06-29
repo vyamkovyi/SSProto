@@ -32,7 +32,7 @@ func fileHash(path string) ([32]byte, error) {
 }
 
 func allFiles(path string) bool {
-	return !strings.HasPrefix(filepath.Base(path), "ignored_")
+	return strings.HasPrefix(filepath.Base(path), "ignored_")
 }
 func jarOnly(path string) bool {
 	return filepath.Ext(path) != ".jar" && !strings.HasPrefix(filepath.Base(path), "ignored_")
