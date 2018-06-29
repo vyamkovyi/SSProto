@@ -13,8 +13,8 @@ import (
 
 	"os/exec"
 	"runtime"
-	"strings"
 	"time"
+	"strings"
 )
 
 var excludedGlob = []string{
@@ -128,49 +128,38 @@ func launchClient() {
 	}
 }
 
+func checkDir() bool {
+	files, err := ioutil.ReadDir(".")
+	if err != nil {
+		Crash("Unable to read current directory:", err.Error())
+	}
+
+	if len(files) > 1 {
+		checkFirst := false
+		checkSecond := false
+		checkThird := false
+		for _, v := range files {
+			if strings.Contains(v.Name(), "versions") {
+				checkFirst = true
+			} else if strings.Contains(v.Name(), "mods") {
+				checkSecond = true
+			} else if strings.Contains(v.Name(), "config") {
+				checkThird = true
+			}
+		}
+
+		if !(checkSecond && checkFirst && checkThird) {
+			return true
+		}
+	}
+	return false
+}
+
 const SSProtoVersion uint8 = 1
 
 func main() {
 	fmt.Println("SSProto version:", SSProtoVersion)
 	fmt.Println("Copyright (C) Hexawolf, foxcpp 2018")
-
-	{
-		files, err := ioutil.ReadDir(".")
-		if err != nil {
-			Crash("Unable to read current directory:", err.Error())
-		}
-		if len(files) > 1 {
-			checkFirst := false
-			checkSecond := false
-			checkThird := false
-			for _, v := range files {
-				if strings.Contains(v.Name(), "versions") {
-					checkFirst = true
-				} else if strings.Contains(v.Name(), "mods") {
-					checkSecond = true
-				} else if strings.Contains(v.Name(), "config") {
-					checkThird = true
-				}
-			}
-
-			if !(checkSecond && checkFirst && checkThird) {
-				fmt.Println()
-				fmt.Println("=================================================================")
-				fmt.Println("! Make sure this application was launched under a new directory !")
-				fmt.Println("=================================================================")
-				fmt.Println("The updater will download files right into current directory. However, it does not looks like an empty directory or existing client. You probably don't want to download files here.")
-				fmt.Print("Do you want to proceed? (y/n): ")
-				for !askForConfirmation() {
-					fmt.Println("Exiting.")
-					return
-				}
-			}
-		}
-
-		os.MkdirAll("mods", 0770)
-		os.MkdirAll("config", 0770)
-		os.MkdirAll("versions", 0770)
-	}
 
 	c, err := net.Dial("tcp", "doggoat.de:48879")
 	if err != nil {
@@ -179,9 +168,26 @@ func main() {
 	defer c.Close()
 	defer time.Sleep(time.Second * 5)
 
+	if checkDir() {
+		fmt.Println()
+		fmt.Println("=================================================================")
+		fmt.Println("! Make sure this application was launched under a new directory !")
+		fmt.Println("=================================================================")
+		fmt.Println("The updater will download files right into current directory. However, it does not looks like an empty directory or existing client. You probably don't want to download files here.")
+		fmt.Print("Do you want to proceed? (y/n): ")
+		for !askForConfirmation() {
+			fmt.Println("Exiting.")
+			return
+		}
+	}
+
+	os.MkdirAll("mods", 0770)
+	os.MkdirAll("config", 0770)
+	os.MkdirAll("versions", 0770)
+
 	// Send protocol version and get answer whether we must ask user for update
 	{
-		err := binary.Write(c, binary.LittleEndian, SSProtoVersion)
+		err = binary.Write(c, binary.LittleEndian, SSProtoVersion)
 		if err != nil {
 			Crash("Unable to send SSProto version:", err.Error())
 		}
