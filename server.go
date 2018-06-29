@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/binary"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"net"
@@ -139,9 +138,8 @@ func (s *Service) serve(conn *net.TCPConn) {
 	}
 
 	for _, entry := range changes {
-		skip := true
+		skip := false
 		for _, clientFile := range clientList {
-			fmt.Println(clientFile, entry.ClientPath, entry.ShouldNotReplace)
 			if clientFile == entry.ClientPath && entry.ShouldNotReplace {
 				skip = true
 			}
