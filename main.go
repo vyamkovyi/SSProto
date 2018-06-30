@@ -7,7 +7,6 @@ import (
 	"io"
 	"io/ioutil"
 	"fmt"
-	"net"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -16,6 +15,7 @@ import (
 	"runtime"
 	"time"
 	"strings"
+	"crypto/tls"
 )
 
 var excludedGlob = []string{
@@ -161,8 +161,10 @@ const SSProtoVersion uint8 = 1
 func main() {
 	fmt.Println("SSProto version:", SSProtoVersion)
 	fmt.Println("Copyright (C) Hexawolf, foxcpp 2018")
+	// Load hardcoded key.
+	LoadKeys()
 
-	c, err := net.Dial("tcp", "doggoat.de:48879")
+	c, err := tls.Dial("tcp", "doggoat.de:48879", &conf)
 	if err != nil {
 		Crash("Unable to connect to the server:", err.Error())
 	}
@@ -233,8 +235,6 @@ func main() {
 		Crash("Unable to send UUID", err.Error())
 	}
 
-	// Load hardcoded key.
-	LoadKeys()
 	// Read & verify signature for UUID.
 	fmt.Println("Reading signature...")
 	uuidSig := [112]byte{}
