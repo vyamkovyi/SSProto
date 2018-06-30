@@ -35,11 +35,14 @@ func allFiles(path string) bool {
 	return strings.HasPrefix(filepath.Base(path), "ignored_")
 }
 func jarOnly(path string) bool {
-	return filepath.Ext(path) != ".jar" && !strings.HasPrefix(filepath.Base(path), "ignored_")
+	return filepath.Ext(path) == ".jar" && !strings.HasPrefix(filepath.Base(path), "ignored_")
+}
+var excludedPaths = []string {
+	"shadowfacts",
 }
 
 func index(dir string, recursive bool, excludeFunc func(string) bool, shouldNotReplace bool) ([]IndexedFile, error) {
-	res := []IndexedFile{}
+	var res []IndexedFile
 	walkFn := func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -52,6 +55,11 @@ func index(dir string, recursive bool, excludeFunc func(string) bool, shouldNotR
 		}
 		if excludeFunc(path) {
 			return nil
+		}
+		for _, v := range excludedPaths {
+			if strings.Contains(path, v) {
+				return nil
+			}
 		}
 
 		hash, err := fileHash(path)
@@ -95,7 +103,7 @@ func ListFiles() {
 
 	// Strip "client/" prefix from client-side paths.
 	for _, part := range [][]IndexedFile{client, clientCfgs} {
-		for i, _ := range part {
+		for i := range part {
 			part[i].ClientPath = part[i].ClientPath[7:]
 		}
 	}
