@@ -5,6 +5,7 @@ import (
 	"net"
 	"time"
 	"sync"
+	"crypto/tls"
 )
 
 type Service struct {
@@ -34,7 +35,8 @@ func (s *Service) Serve(listener *net.TCPListener) {
 		}
 		log.Println("Serving", conn.RemoteAddr())
 		s.wg.Add(1)
-		go s.serve(conn)
+		secureConn := tls.Server(conn, &tlsConfig)
+		go s.serve(secureConn)
 	}
 }
 

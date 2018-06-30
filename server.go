@@ -6,13 +6,13 @@ import (
 	"encoding/binary"
 	"io/ioutil"
 	"log"
-	"net"
 	"time"
 
 	"github.com/twstrike/ed448"
+	"crypto/tls"
 )
 
-func (s *Service) serve(conn *net.TCPConn) {
+func (s *Service) serve(conn *tls.Conn) {
 	defer conn.Close()
 	defer s.wg.Done()
 	conn.SetDeadline(time.Now().Add(time.Second * 600))

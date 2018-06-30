@@ -7,10 +7,13 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"crypto/tls"
 )
 
 const SSProtoVersion uint8 = 1
-const address = "0.0.0.0:48879"
+const address = ":48879"
+
+var tlsConfig tls.Config
 
 func main() {
 	// Rotate logs and set up logging to both file and stdout
@@ -18,6 +21,7 @@ func main() {
 	LogInitialize()
 	log.Println("SSProto version", SSProtoVersion)
 	log.Println("Copyright (C) Hexawolf  2018")
+	var err error
 
 	// See crypto.go
 	if _, err := os.Stat("ss.key"); err != nil {
@@ -26,11 +30,22 @@ func main() {
 		LoadKeys()
 	}
 
+	// Initialize TLS
+	var cert tls.Certificate
+	cert, err = tls.LoadX509KeyPair("cert.pem", "key.pem")
+	if err != nil {
+		log.Panicln("Failed to initialize TLS:", err)
+	}
+	tlsConfig = tls.Config{
+		Certificates: []tls.Certificate{cert},
+		ServerName: "doggoat.de",
+		InsecureSkipVerify: true,
+	}
+
 	// Prepares served files list
 	// lister.go
 	ListFiles()
 
-	var err error
 	defer logFile.Close()
 
 	laddr, err := net.ResolveTCPAddr("tcp", address)
