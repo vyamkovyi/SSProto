@@ -32,45 +32,69 @@ func fileHash(path string) ([32]byte, error) {
 }
 
 func allFiles(path string) bool {
-	return strings.HasPrefix(filepath.Base(path), "ignored_")
+	return strings.Contains(path, "ignored_")
 }
 func jarOnly(path string) bool {
-	return filepath.Ext(path) == ".jar" && !strings.HasPrefix(filepath.Base(path), "ignored_")
+	if filepath.Ext(path) != ".jar" {
+		return true
+	}
+	return strings.Contains(path, "ignored_")
 }
-var excludedPaths = []string {
+
+var excludedPaths = []string{
 	"shadowfacts",
 }
 
 func index(dir string, recursive bool, excludeFunc func(string) bool, shouldNotReplace bool) ([]IndexedFile, error) {
 	var res []IndexedFile
-	walkFn := func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		if info.IsDir() {
-			if !recursive {
-				return filepath.SkipDir
+	var err error = nil
+	if recursive {
+		err = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
 			}
-			return nil
-		}
-		if excludeFunc(path) {
-			return nil
-		}
-		for _, v := range excludedPaths {
-			if strings.Contains(path, v) {
+			if info.IsDir() || excludeFunc(path) {
 				return nil
 			}
-		}
+			for _, v := range excludedPaths {
+				if strings.Contains(path, v) {
+					return nil
+				}
+			}
 
-		hash, err := fileHash(path)
+			hash, err := fileHash(path)
+			if err != nil {
+				return err
+			}
+
+			res = append(res, IndexedFile{path, path, hash, shouldNotReplace})
+			return nil
+		})
+	} else {
+		files, err := ioutil.ReadDir(dir)
 		if err != nil {
-			return err
+			return nil, err
 		}
+		for _, f := range files {
+			if f.IsDir() || excludeFunc(f.Name()) {
+				continue
+			}
 
-		res = append(res, IndexedFile{path, path, hash, shouldNotReplace})
-		return nil
+			fullFileName := dir
+			if !(strings.HasSuffix(fullFileName, "/") || strings.HasSuffix(fullFileName, "\\")) {
+				fullFileName += string(os.PathSeparator)
+			}
+			fullFileName += f.Name()
+
+			hash, err := fileHash(fullFileName)
+			if err != nil {
+				return nil, err
+			}
+
+			res = append(res, IndexedFile{fullFileName, fullFileName, hash, shouldNotReplace})
+		}
 	}
-	return res, filepath.Walk(dir, walkFn)
+	return res, err
 }
 
 func addFile(servPath, clientPath string, shouldNotReplace bool) error {
