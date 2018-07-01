@@ -1,8 +1,8 @@
 package main
 
 import (
+	"crypto/rand"
 	"io/ioutil"
-	"math/rand"
 )
 
 func newUUID() ([]byte, error) {

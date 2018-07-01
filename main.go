@@ -228,6 +228,7 @@ func main() {
 	if err != nil {
 		Crash("Error while loading UUID:", err.Error())
 	}
+	fmt.Println("Our UUID:", base64.StdEncoding.EncodeToString(uuid))
 	// Send it.
 	fmt.Println("Sending UUID...")
 	_, err = c.Write(uuid)
