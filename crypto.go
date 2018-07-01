@@ -3,9 +3,10 @@ package main
 import (
 	"encoding/base64"
 
-	"github.com/twstrike/ed448"
 	"crypto/tls"
 	"crypto/x509"
+
+	"github.com/twstrike/ed448"
 )
 
 var publicKey [56]byte
@@ -41,9 +42,8 @@ func LoadKeys() error {
 	certs := x509.NewCertPool()
 	certs.AppendCertsFromPEM([]byte(cert))
 	conf = tls.Config{
-		RootCAs: certs,
-		ServerName: "doggoat.de",
-		InsecureSkipVerify: true,
+		RootCAs:    certs,
+		ServerName: TargetHost,
 	}
 	return nil
 }
