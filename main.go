@@ -158,7 +158,9 @@ func checkDir() bool {
 }
 
 const SSProtoVersion uint8 = 1
-const TargetHost = "doggoat.de"
+
+// This variable is set by build.sh
+var targetHost string
 
 func main() {
 	fmt.Println("SSProto version:", SSProtoVersion)
@@ -166,7 +168,7 @@ func main() {
 	// Load hardcoded key.
 	LoadKeys()
 
-	c, err := tls.Dial("tcp", TargetHost+":48879", &conf)
+	c, err := tls.Dial("tcp", targetHost+":48879", &conf)
 	if err != nil {
 		Crash("Unable to connect to the server:", err.Error())
 	}
