@@ -2,20 +2,21 @@ package main
 
 import (
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
+	"fmt"
 	"io"
 	"io/ioutil"
-	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
 
+	"crypto/tls"
 	"os/exec"
 	"runtime"
-	"time"
 	"strings"
-	"crypto/tls"
+	"time"
 )
 
 var excludedGlob = []string{
@@ -158,13 +159,16 @@ func checkDir() bool {
 
 const SSProtoVersion uint8 = 1
 
+// This variable is set by build.sh
+var targetHost string
+
 func main() {
 	fmt.Println("SSProto version:", SSProtoVersion)
 	fmt.Println("Copyright (C) Hexawolf, foxcpp 2018")
 	// Load hardcoded key.
 	LoadKeys()
 
-	c, err := tls.Dial("tcp", "doggoat.de:48879", &conf)
+	c, err := tls.Dial("tcp", targetHost+":48879", &conf)
 	if err != nil {
 		Crash("Unable to connect to the server:", err.Error())
 	}
