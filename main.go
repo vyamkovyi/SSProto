@@ -11,7 +11,8 @@ import (
 )
 
 const SSProtoVersion uint8 = 1
-const address = ":48879"
+// This variable is set by release.sh
+var address string
 
 var tlsConfig tls.Config
 
