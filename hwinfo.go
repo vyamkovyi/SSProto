@@ -1,81 +1,47 @@
 package main
 
 import (
-	"os/exec"
 	"runtime"
-	"syscall"
-	"github.com/shirou/gopsutil/cpu"
 	"github.com/shirou/gopsutil/mem"
-	"strings"
 )
 
-type VirtualMemory struct {
+type MachineInfo struct {
 	// Total amount of RAM on this system
-	Total uint64 `json:"total"`
+	MemoryTotal uint64 `json:"mem_total"`
 
 	// RAM available for programs to allocate
 	//
 	// This value is computed from the kernel specific values.
-	Available uint64 `json:"available"`
+	MemoryAvailable uint64 `json:"mem_available"`
 
 	// RAM used by programs
 	//
 	// This value is computed from the kernel specific values.
-	Used uint64 `json:"used"`
+	MemoryUsed uint64 `json:"mem_used"`
 
 	// Percentage of RAM used by programs
 	//
 	// This value is computed from the kernel specific values.
-	UsedPercent float64 `json:"usedPercent"`
+	MemoryUsedPercent float64 `json:"mem_usedPercent"`
 
 	// This is the kernel's notion of free memory; RAM chips whose bits nobody
-	// cares about the value of right now. For a human consumable number,
-	// Available is what you really want.
-	Free uint64 `json:"free"`
-}
+	// cares about the value of right now.
+	MemoryFree uint64 `json:"mem_free"`
 
-func getMemoryInfo() VirtualMemory {
-	v, err := mem.VirtualMemory()
-	var v2 VirtualMemory
-	if err == nil {
-		v2.Available = v.Available
-		v2.Free = v.Free
-		v2.Total = v.Total
-		v2.Used = v.Used
-		v2.UsedPercent = v.UsedPercent
-	}
-	return v2
-}
-
-func getCPUInfo() []cpu.InfoStat {
-	stat, _ := cpu.Info()
-	return stat
-}
-
-func getGPUInfo() string {
-	if runtime.GOOS == "windows" {
-		Info := exec.Command("cmd", "/C",
-			"wmic path win32_VideoController get name")
-		Info.SysProcAttr = &syscall.SysProcAttr{}
-		History, _ := Info.Output()
-		outputString := strings.TrimPrefix(string(History), "Name")
-		return strings.Trim(outputString, " \r\n")
-	}
-	return ""
-}
-
-type MachineInfo struct {
-	Mem VirtualMemory
-	Cpu []cpu.InfoStat
-	Gpu string
-	OS  string
+	// User's operating system, just GOOS variable
+	OS  string `json:"os"`
 }
 
 func GetMachineInfo() MachineInfo {
 	var info MachineInfo
-	info.Cpu = getCPUInfo()
-	info.Gpu = getGPUInfo()
-	info.Mem = getMemoryInfo()
+	v, err := mem.VirtualMemory()
+	if err == nil {
+		info.MemoryAvailable = v.Available
+		info.MemoryFree = v.Free
+		info.MemoryTotal = v.Total
+		info.MemoryUsed = v.Used
+		info.MemoryUsedPercent = v.UsedPercent
+	}
 	info.OS = runtime.GOOS
 	return info
 }
