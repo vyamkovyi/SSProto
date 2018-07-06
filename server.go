@@ -15,7 +15,7 @@ import (
 func (s *Service) serve(conn *tls.Conn) {
 	defer conn.Close()
 	defer s.wg.Done()
-	conn.SetDeadline(time.Now().Add(time.Second * 600))
+	conn.SetDeadline(time.Now().Add(time.Second * 300))
 	var size uint64
 
 	// Protocol version
@@ -38,10 +38,9 @@ func (s *Service) serve(conn *tls.Conn) {
 	}
 
 	// Sign identifier
-	curve := ed448.NewDecafCurve()
-	signature, ok := curve.Sign(privateKey, data)
-	if !ok {
-		log.Println("Unable to sign received client identifier!")
+	signature, err := SignData(data)
+	if err != nil {
+		log.Println("Unable to sign received client identifier:", err)
 		return
 	}
 

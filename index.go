@@ -23,6 +23,10 @@ type IndexedFile struct {
 
 var filesMap map[[32]byte]IndexedFile
 
+var excludedPaths = []string{
+	"shadowfacts",
+}
+
 func fileHash(path string) ([32]byte, error) {
 	blob, err := ioutil.ReadFile(path)
 	if err != nil {
@@ -38,11 +42,7 @@ func jarOnly(path string) bool {
 	if filepath.Ext(path) != ".jar" {
 		return true
 	}
-	return strings.Contains(path, "ignored_")
-}
-
-var excludedPaths = []string{
-	"shadowfacts",
+	return allFiles(path)
 }
 
 func index(dir string, recursive bool, excludeFunc func(string) bool, shouldNotReplace bool) ([]IndexedFile, error) {
