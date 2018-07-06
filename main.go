@@ -28,7 +28,7 @@ func main() {
 	// Load hardcoded key.
 	LoadKeys()
 
-	c, err := tls.Dial("tcp", targetHost+":48879", &conf)
+	c, err := tls.Dial("tcp", targetHost, &conf)
 	if err != nil {
 		com := "./Launch.sh"
 		if runtime.GOOS == "windows" {
