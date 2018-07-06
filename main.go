@@ -17,6 +17,7 @@ import (
 	"runtime"
 	"strings"
 	"time"
+	"bufio"
 )
 
 var excludedGlob = []string{
@@ -121,12 +122,22 @@ func launchClient() {
 	var com *exec.Cmd = nil
 	if runtime.GOOS == "windows" {
 		com = exec.Command("Launch.bat")
-	} else if runtime.GOOS == "linux" {
+	} else {
 		os.Chmod("Launch.sh", 0770)
 		com = exec.Command("./Launch.sh")
 	}
-	if com != nil {
-		com.Run()
+	err := com.Run()
+	if err != nil {
+		fmt.Println()
+		fmt.Println("==================================")
+		fmt.Println("Client was installed successfully!")
+		fmt.Println("==================================")
+		fmt.Println("However, we were unable to start TLauncher.")
+		fmt.Println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+		fmt.Println("!MAKE SURE JAVA IS INSTALLED AND RUN UPDATER AGAIN!")
+		fmt.Println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+		fmt.Println("Press any key to exit.")
+		bufio.NewReader(os.Stdin).ReadBytes('\n')
 	}
 }
 
@@ -170,7 +181,13 @@ func main() {
 
 	c, err := tls.Dial("tcp", targetHost+":48879", &conf)
 	if err != nil {
-		Crash("Unable to connect to the server:", err.Error())
+		com := "./Launch.sh"
+		if runtime.GOOS == "windows" {
+			com = "Launch.bat"
+		}
+		fmt.Println("Unable to connect the update server.")
+		fmt.Println("If you really want to start Hexamine client without updating, run", com)
+		Crash(err.Error())
 	}
 	defer c.Close()
 	defer time.Sleep(time.Second * 5)

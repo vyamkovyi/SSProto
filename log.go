@@ -6,12 +6,13 @@ import (
 	"io"
 	"fmt"
 	"bufio"
+	"runtime"
 )
 
 func Crash(data ...interface{}) {
 	fmt.Println()
 	fmt.Println("=============================================================")
-	fmt.Println("\tCRASH OCCURED!")
+	fmt.Println("\tCRASH OCCURRED!")
 	fmt.Println("Please contact with administrator and send ss-error.log file!")
 	fmt.Println("=============================================================")
 	log.SetFlags(log.Ldate | log.Ltime | log.LUTC)
@@ -19,7 +20,11 @@ func Crash(data ...interface{}) {
 		os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0660)
 	if err != nil {
 		fmt.Println("Looks like you don't have write access.")
-		fmt.Println("You might want to run this application as an administator.")
+		if runtime.GOOS == "windows" {
+			fmt.Println("Minecraft isn't really ought to be installed in Program Files.")
+		}
+		fmt.Println("You might want to run this application as administator if you don't really care about" +
+			"security. Alternatively, create directory in your user's home directory and install client there.")
 		log.Println(err)
 		log.Println("Crash cause:", data)
 	} else {
