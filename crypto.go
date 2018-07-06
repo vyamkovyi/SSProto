@@ -7,6 +7,8 @@ import (
 	"crypto/x509"
 
 	"github.com/twstrike/ed448"
+	"io/ioutil"
+	"crypto/rand"
 )
 
 var publicKey [56]byte
@@ -37,4 +39,24 @@ func LoadKeys() error {
 func Verify(data []byte, signature [112]byte) bool {
 	verify, err := curve.Verify(signature, data, publicKey)
 	return verify && err == nil
+}
+
+func newUUID() ([]byte, error) {
+	v := make([]byte, 32)
+	_, err := rand.Read(v)
+	return v, err
+}
+
+func UUID() ([]byte, error) {
+	uuidLocation := "config/uuid.bin"
+	if fileExists(uuidLocation) {
+		return ioutil.ReadFile(uuidLocation)
+	} else {
+		b, err := newUUID()
+		if err != nil {
+			return nil, err
+		}
+		ioutil.WriteFile(uuidLocation, b, 0600)
+		return b, nil
+	}
 }
