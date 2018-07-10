@@ -9,6 +9,7 @@ import (
 	"github.com/twstrike/ed448"
 	"io/ioutil"
 	"crypto/rand"
+	"strings"
 )
 
 var publicKey [56]byte
@@ -31,7 +32,8 @@ func LoadKeys() error {
 	certs.AppendCertsFromPEM([]byte(cert))
 	conf = tls.Config{
 		RootCAs:    certs,
-		ServerName: targetHost,
+		// Extract domain from targetHost
+		ServerName: strings.Split(targetHost, ":")[0],
 	}
 	return nil
 }
