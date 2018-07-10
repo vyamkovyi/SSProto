@@ -57,8 +57,6 @@ func LogInitialize() {
 	}
 	multiWriter := io.MultiWriter(os.Stdout, logFile)
 	log.SetOutput(multiWriter)
-	// Rotate logs every day
-	gocron.Every(1).Day().At("00:00").Do(LogInitialize)
 }
 
 var mut = &sync.Mutex{}
