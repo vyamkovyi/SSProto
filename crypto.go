@@ -34,6 +34,7 @@ func MakeKeys() error {
 }
 
 func LoadKeys() error {
+	curve = ed448.NewDecafCurve()
 	f, err := os.Open("ss.key")
 	if err != nil {
 		return err
