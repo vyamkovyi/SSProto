@@ -6,5 +6,5 @@ if [ $# -ne 1 ]; then
     exit 1
 fi
 
-go build --ldflags="-s -w -X main.address=\":$1\""
+go build --ldflags="-s -w -X main.address=:$1"
 scp -P 42 ./ssserver hexawolf@doggy:~/server/ssserver
