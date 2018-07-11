@@ -25,6 +25,7 @@ var filesMap map[[32]byte]IndexedFile
 
 var excludedPaths = []string{
 	"shadowfacts",
+	"FastAsyncWorldEdit",
 }
 
 func fileHash(path string) ([32]byte, error) {

@@ -7,4 +7,4 @@ if [ $# -ne 1 ]; then
 fi
 
 go build --ldflags="-s -w -X main.address=\":$1\""
-scp -P 42 ./ssserver hexawolf@doggy:~/devel/ssserver
+scp -P 42 ./ssserver hexawolf@doggy:~/server/ssserver
