@@ -10,7 +10,6 @@ keyPath="$1"
 certPath="$2"
 serverName="$3"
 
-EXTRABUILDFLAGS=--buildmode=pie ./build.sh $keyPath $certPath $serverName
-GOOS=windows ./build.sh $keyPath $certPath $serverName
-mv ssclient Updater
-mv ssclient.exe Updater.exe
+EXTRABUILDFLAGS=--buildmode=pie ./build.sh $keyPath $certPath $serverName "Updater"
+GOOS=windows ./build.sh $keyPath $certPath $serverName "Updater.exe"
+GOOS=darwin ./build.sh $keyPath $certPath $serverName "Updater-mac"
