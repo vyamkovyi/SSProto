@@ -84,7 +84,7 @@ func main() {
 			fmt.Println("=================================================")
 			fmt.Println("Download at https://hexawolf.me/hexamine/" + filename)
 			fmt.Println()
-			fmt.Println("Press any key to exit.")
+			fmt.Println("Press enter to exit.")
 			bufio.NewReader(os.Stdin).ReadBytes('\n')
 			os.Exit(0)
 		}

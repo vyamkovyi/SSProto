@@ -62,7 +62,7 @@ func launchClient() {
 		fmt.Println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
 		fmt.Println("!MAKE SURE JAVA IS INSTALLED AND RUN UPDATER AGAIN!")
 		fmt.Println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-		fmt.Println("Press any key to exit.")
+		fmt.Println("Press enter to exit.")
 		bufio.NewReader(os.Stdin).ReadBytes('\n')
 	}
 }
