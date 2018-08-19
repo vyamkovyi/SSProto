@@ -1,3 +1,15 @@
+// logging.go - log rotation and initialization
+// Copyright (c) 2018  Hexawolf
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy of
+// this software and associated documentation files (the "Software"), to deal in
+// the Software without restriction, including without limitation the rights to
+// use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+// of the Software, and to permit persons to whom the Software is furnished to do
+// so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
 package main
 
 import (
@@ -12,7 +24,9 @@ import (
 	"bufio"
 )
 
-func rotate(prefix string, suffix string, directory string) {
+// Rotate function performs logs rotation in specified directory. It checks existence of prefix.N.suffix files and
+// renames prefix.suffix file to prefix.N+1.suffix file. That is, log with largest N is the latest log.
+func Rotate(prefix string, suffix string, directory string) {
 	prefix = prefix + "."
 	suffix = "log"
 
@@ -52,9 +66,10 @@ func rotate(prefix string, suffix string, directory string) {
 
 var logFile *os.File
 
+// LogInitialize sets up logging with date and time in UTC format to both file and stdout.
 func LogInitialize() {
 	log.SetFlags(log.Ldate | log.Ltime | log.LUTC)
-	rotate("sss", "log", "logs/")
+	Rotate("sss", "log", "logs/")
 	var err error = nil
 	logFile, err = os.OpenFile("logs/sss.log",
 		os.O_CREATE | os.O_RDWR, 0660)
@@ -67,7 +82,7 @@ func LogInitialize() {
 
 var mut = &sync.Mutex{}
 
-// Check if machine was already logged
+// Check if machine was already logged to the log file
 func machineExists(id string) bool {
 	mut.Lock()
 	logFile.Seek(0, 0)

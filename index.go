@@ -1,3 +1,15 @@
+// index.go - enlisting and hashing of files that need to be present and up to date on client side.
+// Copyright (c) 2018  Hexawolf
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy of
+// this software and associated documentation files (the "Software"), to deal in
+// the Software without restriction, including without limitation the rights to
+// use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+// of the Software, and to permit persons to whom the Software is furnished to do
+// so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
 package main
 
 import (
@@ -9,11 +21,13 @@ import (
 	"strings"
 )
 
+// IndexedFile represents essential data shipped with the file during update.
 type IndexedFile struct {
 	// Where file is located on server (absolute).
 	ServPath string
 	// Where file should be placed on client (relative to client root directory).
 	ClientPath string
+
 	Hash       [32]byte
 
 	// If true - file will be not replaced at client if it's already present
@@ -23,6 +37,8 @@ type IndexedFile struct {
 
 var filesMap map[[32]byte]IndexedFile
 
+// A collection of snowflakes! ❄️
+// excludedPaths contains files that must not be indexed and sent to client.
 var excludedPaths = []string{
 	"shadowfacts",
 	"FastAsyncWorldEdit",
@@ -36,9 +52,16 @@ func fileHash(path string) ([32]byte, error) {
 	return sha256.Sum256(blob), nil
 }
 
+// ExcludeFunc represents any suitable function that checks if passed file path must be excluded from indexing.
+// WARNING! Returning true means exclusion of file!
+type ExcludeFunc func(string) bool
+
+// allFiles is a ExcludeFunc candidate that excludes only files with ignored_ prefix
 func allFiles(path string) bool {
 	return strings.Contains(path, "ignored_")
 }
+
+// jarOnly is a ExcludeFunc candidate that excludes files with .jar extension or ignored_ prefix
 func jarOnly(path string) bool {
 	if filepath.Ext(path) != ".jar" {
 		return true
@@ -46,7 +69,7 @@ func jarOnly(path string) bool {
 	return allFiles(path)
 }
 
-func index(dir string, recursive bool, excludeFunc func(string) bool, shouldNotReplace bool) ([]IndexedFile, error) {
+func index(dir string, recursive bool, excludeFunc ExcludeFunc, shouldNotReplace bool) ([]IndexedFile, error) {
 	var res []IndexedFile
 	var err error = nil
 	if recursive {
