@@ -32,7 +32,7 @@ func Crash(data ...interface{}) {
 		log.SetOutput(multiWriter)
 		log.Println(data...)
 	}
-	fmt.Println("Press any key to exit.")
+	fmt.Println("Press enter to exit.")
 	bufio.NewReader(os.Stdin).ReadBytes('\n')
 	os.Exit(1)
 }
