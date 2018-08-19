@@ -1,13 +1,10 @@
+// utils.go - collection of useful hacks used in project
+// This file is not copyrighted. Do whatever you want to the code below, including copying and modifying.
 package main
 
 import (
 	"fmt"
-	"os/exec"
-	"runtime"
 	"os"
-	"bufio"
-	"io/ioutil"
-	"strings"
 )
 
 // posString returns the first index of element in slice.
@@ -26,6 +23,7 @@ func containsString(slice []string, element string) bool {
 	return !(posString(slice, element) == -1)
 }
 
+// askForConfirmation asks user to answer a yes/no question and interprets answer as boolean
 func askForConfirmation() bool {
 	var response string
 	_, err := fmt.Scanln(&response)
@@ -44,52 +42,8 @@ func askForConfirmation() bool {
 	}
 }
 
-func launchClient() {
-	var com *exec.Cmd = nil
-	if runtime.GOOS == "windows" {
-		com = exec.Command("Launch.bat")
-	} else {
-		os.Chmod("Launch.sh", 0770)
-		com = exec.Command("./Launch.sh")
-	}
-	err := com.Run()
-	if err != nil {
-		fmt.Println()
-		fmt.Println("==================================")
-		fmt.Println("Client was installed successfully!")
-		fmt.Println("==================================")
-		fmt.Println("However, we were unable to start TLauncher.")
-		fmt.Println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-		fmt.Println("!MAKE SURE JAVA IS INSTALLED AND RUN UPDATER AGAIN!")
-		fmt.Println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-		fmt.Println("Press enter to exit.")
-		bufio.NewReader(os.Stdin).ReadBytes('\n')
-	}
-}
-
-func checkDir() bool {
-	files, err := ioutil.ReadDir(".")
-	if err != nil {
-		Crash("Unable to read current directory:", err.Error())
-	}
-
-	if len(files) > 1 {
-		checkFirst := false
-		checkSecond := false
-		checkThird := false
-		for _, v := range files {
-			if strings.Contains(v.Name(), "versions") {
-				checkFirst = true
-			} else if strings.Contains(v.Name(), "mods") {
-				checkSecond = true
-			} else if strings.Contains(v.Name(), "config") {
-				checkThird = true
-			}
-		}
-
-		if !(checkSecond && checkFirst && checkThird) {
-			return true
-		}
-	}
-	return false
+// fileExists checks if file in specified path exists
+func fileExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
 }

@@ -1,3 +1,15 @@
+// main.go - wraps everything up and performs SSProto magic ✨
+// Copyright (c) 2018  Hexawolf
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy of
+// this software and associated documentation files (the "Software"), to deal in
+// the Software without restriction, including without limitation the rights to
+// use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+// of the Software, and to permit persons to whom the Software is furnished to do
+// so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
 package main
 
 import (
@@ -15,16 +27,104 @@ import (
 	"runtime"
 	"time"
 	"bufio"
+	"log"
+	"strings"
+	"os/exec"
 )
 
+// SSProto protocol version. Used to determine if we need to update our updater.
 const SSProtoVersion uint8 = 1
 
 // This variable is set by build.sh
 var targetHost string
 
+// launchClient tries to launch client startup script distributed with Hexamine client.
+// Notice for future generations: you likely want to get rid of this if you want reuse SSProto
+// as this is purely Hexamine-specific code.
+func launchClient() {
+	var com *exec.Cmd = nil
+	if runtime.GOOS == "windows" {
+		com = exec.Command("Launch.bat")
+	} else {
+		os.Chmod("Launch.sh", 0770)
+		com = exec.Command("./Launch.sh")
+	}
+	err := com.Run()
+	if err != nil {
+		fmt.Println()
+		fmt.Println("==================================")
+		fmt.Println("Client was installed successfully!")
+		fmt.Println("==================================")
+		fmt.Println("However, we were unable to start TLauncher.")
+		fmt.Println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+		fmt.Println("!MAKE SURE JAVA IS INSTALLED AND RUN UPDATER AGAIN!")
+		fmt.Println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+		fmt.Println("Press enter to exit.")
+		bufio.NewReader(os.Stdin).ReadBytes('\n')
+	}
+}
+
+// checkDir tries to do esoteric scanning to see if current directory suitable for installing client
+func checkDir() bool {
+	files, err := ioutil.ReadDir(".")
+	if err != nil {
+		Crash("Unable to read current directory:", err.Error())
+	}
+
+	if len(files) > 1 {
+		checkFirst := false
+		checkSecond := false
+		checkThird := false
+		for _, v := range files {
+			if strings.Contains(v.Name(), "versions") {
+				checkFirst = true
+			} else if strings.Contains(v.Name(), "mods") {
+				checkSecond = true
+			} else if strings.Contains(v.Name(), "config") {
+				checkThird = true
+			}
+		}
+
+		if !(checkSecond && checkFirst && checkThird) {
+			return true
+		}
+	}
+	return false
+}
+
+// Crash function crashes the application saving data to the ss-error.log file
+func Crash(data ...interface{}) {
+	fmt.Println()
+	fmt.Println("=============================================================")
+	fmt.Println("\tCRASH OCCURRED!")
+	fmt.Println("Please contact with administrator and send ss-error.log file!")
+	fmt.Println("=============================================================")
+	log.SetFlags(log.Ldate | log.Ltime | log.LUTC)
+	logFile, err := os.OpenFile("ss-error.log",
+		os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0660)
+	if err != nil {
+		fmt.Println("Looks like you don't have write access.")
+		if runtime.GOOS == "windows" {
+			fmt.Println("Minecraft isn't really ought to be installed in Program Files.")
+		}
+		fmt.Println("You might want to run this application as administator if you don't really care about" +
+			"security. Alternatively, create directory in your user's home directory and install client there.")
+		log.Println(err)
+		log.Println("Crash cause:", data)
+	} else {
+		multiWriter := io.MultiWriter(os.Stdout, logFile)
+		log.SetOutput(multiWriter)
+		log.Println(data...)
+	}
+	fmt.Println("Press enter to exit.")
+	bufio.NewReader(os.Stdin).ReadBytes('\n')
+	os.Exit(1)
+}
+
+// main ✨✨✨
 func main() {
 	fmt.Println("SSProto version:", SSProtoVersion)
-	fmt.Println("Copyright (C) Hexawolf, foxcpp 2018")
+	fmt.Println("Copyright (C) Hexawolf 2018")
 	// Load hardcoded key.
 	LoadKeys()
 
