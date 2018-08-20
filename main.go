@@ -23,13 +23,13 @@ import (
 	"os"
 	"path/filepath"
 
-	"crypto/tls"
-	"runtime"
-	"time"
 	"bufio"
+	"crypto/tls"
 	"log"
-	"strings"
 	"os/exec"
+	"runtime"
+	"strings"
+	"time"
 )
 
 // SSProto protocol version. Used to determine if we need to update our updater.
@@ -85,11 +85,9 @@ func checkDir() bool {
 			}
 		}
 
-		if !(checkSecond && checkFirst && checkThird) {
-			return true
-		}
+		return !(checkSecond && checkFirst && checkThird)
 	}
-	return false
+	return true
 }
 
 // Crash function crashes the application saving data to the ss-error.log file
@@ -141,23 +139,30 @@ func main() {
 	defer c.Close()
 	defer time.Sleep(time.Second * 5)
 
-	if checkDir() {
-		fmt.Println()
-		fmt.Println("=================================================================")
-		fmt.Println("! Make sure this application was launched under a new directory !")
-		fmt.Println("=================================================================")
-		fmt.Println("The updater will download files right into current directory.")
-		fmt.Println("However, it does not looks like an empty directory or existing client. You probably don't want to download files here.")
-		fmt.Print("Do you want to proceed? (y/n): ")
-		for !askForConfirmation() {
-			fmt.Println("Exiting.")
-			return
-		}
+	fmt.Println()
+	installDirectory := os.Getenv("HOME") + "/.hexamine/"
+	if runtime.GOOS == "windows" {
+		installDirectory = os.Getenv("AppData") + "\\.hexamine\\"
 	}
-
-	os.MkdirAll("mods", 0770)
-	os.MkdirAll("config", 0770)
-	os.MkdirAll("versions", 0770)
+	currentDirStatus := checkDir()
+	if currentDirStatus {
+		fmt.Println("Default directory for installation is \"" + installDirectory + "\".")
+		fmt.Print("Do you want to use current directory instead? (y/n): ")
+		if askForConfirmation() {
+			installDirectory = "./"
+			if runtime.GOOS == "windows" {
+				installDirectory = ".\\"
+			}
+		} else {
+			os.MkdirAll(installDirectory, 0770)
+		}
+		os.MkdirAll(installDirectory+"mods", 0770)
+		os.MkdirAll(installDirectory+"config", 0770)
+		os.MkdirAll(installDirectory+"versions", 0770)
+	} else {
+		installDirectory = "."
+	}
+	os.Chdir(installDirectory)
 
 	// Send protocol version and get answer whether we must ask user for update
 	{
