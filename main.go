@@ -38,10 +38,17 @@ const SSProtoVersion uint8 = 1
 // This variable is set by build.sh
 var targetHost string
 
+var noLaunch = false
+var forceCurrent = false
+var installDirectory = "." + string(os.PathSeparator)
+
 // launchClient tries to launch client startup script distributed with Hexamine client.
 // Notice for future generations: you likely want to get rid of this if you want reuse SSProto
 // as this is purely Hexamine-specific code.
 func launchClient() {
+	if noLaunch {
+		return
+	}
 	var com *exec.Cmd = nil
 	if runtime.GOOS == "windows" {
 		com = exec.Command("Launch.bat")
@@ -62,32 +69,6 @@ func launchClient() {
 		fmt.Println("Press enter to exit.")
 		bufio.NewReader(os.Stdin).ReadBytes('\n')
 	}
-}
-
-// checkDir tries to do esoteric scanning to see if current directory suitable for installing client
-func checkDir() bool {
-	files, err := ioutil.ReadDir(".")
-	if err != nil {
-		Crash("Unable to read current directory:", err.Error())
-	}
-
-	if len(files) > 1 {
-		checkFirst := false
-		checkSecond := false
-		checkThird := false
-		for _, v := range files {
-			if strings.Contains(v.Name(), "versions") {
-				checkFirst = true
-			} else if strings.Contains(v.Name(), "mods") {
-				checkSecond = true
-			} else if strings.Contains(v.Name(), "config") {
-				checkThird = true
-			}
-		}
-
-		return !(checkSecond && checkFirst && checkThird)
-	}
-	return true
 }
 
 // Crash function crashes the application saving data to the ss-error.log file
@@ -121,47 +102,98 @@ func Crash(data ...interface{}) {
 
 // main ✨✨✨
 func main() {
-	fmt.Println("SSProto version:", SSProtoVersion)
+	fmt.Println("ss-client REV1")
 	fmt.Println("Copyright (C) Hexawolf 2018")
+
+	if containsString(os.Args, "--help") {
+		fmt.Println("Usage:")
+		fmt.Println("--force-current \t- Disable any directory checks and use current dir.")
+		fmt.Println("--only-launch \t- Do not perform any updates, just launch the game.")
+		fmt.Println("--install-dir \"path\" \t- directory to install client.")
+		fmt.Println("--no-launch \t- Do not launch client after installation.")
+		fmt.Println("--legal \t- License and copyright.")
+		fmt.Println("--help \t- this.")
+		return
+	}
+
+	if containsString(os.Args, "--legal") {
+		fmt.Println("This application uses MIT license.")
+		fmt.Println(`
+Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the "Software"), to deal in
+the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+of the Software, and to permit persons to whom the Software is furnished to do
+so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.`)
+		return
+	}
+
+	if containsString(os.Args, "--only-launch") {
+		launchClient()
+		return
+	}
+
+	if containsString(os.Args, "--no-launch") {
+		noLaunch = true
+	}
+
+	if containsString(os.Args, "--force-current") {
+		forceCurrent = true
+	}
+
+	if containsString(os.Args, "--install-dir") {
+		forceCurrent = true
+		index := posString(os.Args, "--install-dir") + 1
+		if len(os.Args) < index {
+			fmt.Println()
+			fmt.Println("Invalid usage!")
+			os.Exit(1)
+		}
+		installDirectory = os.Args[index]
+		if !strings.ContainsRune(installDirectory, os.PathSeparator) {
+			fmt.Println("Invalid path!")
+			os.Exit(1)
+		}
+	}
+
+	fmt.Println("SSProto version:", SSProtoVersion)
 	// Load hardcoded key.
 	LoadKeys()
 
 	c, err := tls.Dial("tcp", targetHost, &conf)
 	if err != nil {
-		com := "./Launch.sh"
-		if runtime.GOOS == "windows" {
-			com = "Launch.bat"
-		}
 		fmt.Println("Unable to connect the update server.")
-		fmt.Println("If you really want to start Hexamine client without updating, run", com)
+		fmt.Println("If you really want to start Hexamine client without updating, " +
+			"run updater with --only-launch flag.")
 		Crash(err.Error())
 	}
 	defer c.Close()
 	defer time.Sleep(time.Second * 5)
 
+	// Setting up directory
 	fmt.Println()
-	installDirectory := os.Getenv("HOME") + "/.hexamine/"
-	if runtime.GOOS == "windows" {
-		installDirectory = os.Getenv("AppData") + "\\.hexamine\\"
-	}
-	currentDirStatus := checkDir()
-	if currentDirStatus {
-		fmt.Println("Default directory for installation is \"" + installDirectory + "\".")
-		fmt.Print("Do you want to use current directory instead? (y/n): ")
-		if askForConfirmation() {
-			installDirectory = "./"
-			if runtime.GOOS == "windows" {
-				installDirectory = ".\\"
-			}
+	if !forceCurrent {
+		if runtime.GOOS == "windows" {
+			installDirectory = os.Getenv("AppData") + "\\.hexamine\\"
 		} else {
-			os.MkdirAll(installDirectory, 0770)
+			installDirectory = os.Getenv("HOME") + "/.hexamine/"
 		}
-		os.MkdirAll(installDirectory+"mods", 0770)
-		os.MkdirAll(installDirectory+"config", 0770)
-		os.MkdirAll(installDirectory+"versions", 0770)
-	} else {
-		installDirectory = "."
 	}
+	fmt.Println("Default directory for installation is", installDirectory)
+	os.MkdirAll(installDirectory+"mods", 0770)
+	os.MkdirAll(installDirectory+"config", 0770)
+	os.MkdirAll(installDirectory+"versions", 0770)
 	os.Chdir(installDirectory)
 
 	// Send protocol version and get answer whether we must ask user for update
