@@ -102,7 +102,7 @@ func Crash(data ...interface{}) {
 
 // main ✨✨✨
 func main() {
-	fmt.Println("ss-client REV1")
+	fmt.Println("ss-client REV2")
 	fmt.Println("Copyright (C) Hexawolf 2018")
 
 	if containsString(os.Args, "--help") {
