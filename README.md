@@ -16,3 +16,5 @@ files are signed with ed448-decaf key hard-coded to the client.
 
 Copyright (C) 2018  Hexawolf.
 This work uses MIT license.
+
+[Client code](https://github.com/Hexawolf/ss-client)
