@@ -32,3 +32,5 @@ Copyright © 2018 Hexawolf
 
 This software and most of it's code (except utils.go file) is available under MIT license. The utils.go is not licensed
 at all: you are hereby granted to do anything you want with the code there.
+
+[Server code](https://github.com/Hexawolf/ss-server)
