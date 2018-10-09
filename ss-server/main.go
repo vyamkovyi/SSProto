@@ -20,6 +20,8 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/fsnotify/fsnotify"
 )
 
 // SSProtoVersion is a protocol version. Used to determine if clients need update.
@@ -52,7 +54,12 @@ func main() {
 
 	// Prepares served files list
 	// lister.go
+	watcher, err = fsnotify.NewWatcher()
+	if err != nil {
+		log.Panicln("Failed to initialize fsnotify:", err)
+	}
 	ListFiles()
+	go handleFSEvents()
 
 	defer logFile.Close()
 

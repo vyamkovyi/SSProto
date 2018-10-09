@@ -3,6 +3,7 @@ module github.com/Hexawolf/SSProto
 require (
 	github.com/StackExchange/wmi v0.0.0-20180725035823-b12b22c5341f // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/fsnotify/fsnotify v1.4.7
 	github.com/go-ole/go-ole v1.2.1 // indirect
 	github.com/inconshreveable/go-update v0.0.0-20160112193335-8152e7eb6ccf
 	github.com/pmezard/go-difflib v1.0.0 // indirect

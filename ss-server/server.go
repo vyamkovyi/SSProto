@@ -39,6 +39,19 @@ func (s *Service) serve(conn *tls.Conn) {
 		binary.Write(conn, binary.LittleEndian, SSProtoVersion)
 	}
 
+	// Force pending reindexing if any so we will not
+	// send newer version of file when we have only
+	// hash of older version.
+	filesMapLock.Lock()
+	if reindexRequired {
+		log.Println("Reindexing files...")
+		ListFiles()
+		log.Println("Reindexing done")
+		reindexRequired = false
+		reindexTimer.Stop()
+	}
+	filesMapLock.Unlock()
+
 	// Expecting 32-bytes long identifier
 	data := make([]byte, 32)
 	err := binary.Read(conn, binary.LittleEndian, data)
@@ -75,6 +88,9 @@ func (s *Service) serve(conn *tls.Conn) {
 
 	clientFiles := make(map[[32]byte]string)
 	var clientList []string
+
+	filesMapLock.RLock()
+	defer filesMapLock.RUnlock()
 
 	// Get hashes from client and create an intersection
 	for {
