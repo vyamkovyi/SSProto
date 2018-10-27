@@ -13,11 +13,11 @@
 package main
 
 import (
+	"crypto/sha256"
+	"io/ioutil"
+	"os"
 	"path/filepath"
 	"regexp"
-	"os"
-	"io/ioutil"
-	"crypto/sha256"
 )
 
 // excludedGlob is a collection of snowflakes ❄️
@@ -68,12 +68,6 @@ func collectHashList() (map[string][]byte, error) {
 	list, err := collectRecurse(".")
 	if err != nil {
 		return nil, err
-	}
-
-	// A very special snowflake for Hexamine ❄️
-	authlib := "libraries/com/mojang/authlib/1.5.25/authlib-1.5.25.jar"
-	if fileExists(authlib) {
-		list = append(list, filepath.ToSlash(authlib))
 	}
 
 	for _, path := range list {
