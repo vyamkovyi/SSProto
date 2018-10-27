@@ -13,15 +13,15 @@
 package main
 
 import (
+	"bufio"
+	"io"
 	"io/ioutil"
-	"os"
 	"log"
-	"strings"
+	"os"
 	"sort"
 	"strconv"
-	"io"
+	"strings"
 	"sync"
-	"bufio"
 )
 
 // Rotate function performs logs rotation in specified directory. It checks existence of prefix.N.suffix files and
@@ -60,8 +60,8 @@ func Rotate(prefix string, suffix string, directory string) {
 			break
 		}
 	}
-	os.Rename(directory + prefix + suffix,
-		directory + prefix + strconv.Itoa(num+1) + "." + suffix)
+	os.Rename(directory+prefix+suffix,
+		directory+prefix+strconv.Itoa(num+1)+"."+suffix)
 }
 
 var logFile *os.File
@@ -72,7 +72,7 @@ func LogInitialize() {
 	Rotate("sss", "log", "logs/")
 	var err error = nil
 	logFile, err = os.OpenFile("logs/sss.log",
-		os.O_CREATE | os.O_RDWR, 0660)
+		os.O_CREATE|os.O_RDWR, 0660)
 	if err != nil {
 		log.Panicln(err)
 	}

@@ -20,7 +20,6 @@ import (
 	"log"
 	"time"
 
-	"github.com/twstrike/ed448"
 	"crypto/tls"
 )
 
@@ -44,20 +43,6 @@ func (s *Service) serve(conn *tls.Conn) {
 	// Expecting 32-bytes long identifier
 	data := make([]byte, 32)
 	err := binary.Read(conn, binary.LittleEndian, data)
-	if err != nil {
-		log.Println("Stream error:", err)
-		return
-	}
-
-	// Sign identifier
-	signature, err := SignData(data)
-	if err != nil {
-		log.Println("Unable to sign received client identifier:", err)
-		return
-	}
-
-	// Send signature back
-	err = binary.Write(conn, binary.LittleEndian, signature)
 	if err != nil {
 		log.Println("Stream error:", err)
 		return
@@ -167,18 +152,6 @@ func (s *Service) serve(conn *tls.Conn) {
 
 		// Generate and send hash
 		err = binary.Write(conn, binary.LittleEndian, entry.Hash)
-		if err != nil {
-			log.Println("Stream error:", err)
-			return
-		}
-
-		// Sign hash and send signature
-		curve = ed448.NewDecafCurve()
-		signature, ok := curve.Sign(privateKey, entry.Hash[:])
-		if !ok {
-			log.Panicln("Failed to sign hash!")
-		}
-		err = binary.Write(conn, binary.LittleEndian, signature)
 		if err != nil {
 			log.Println("Stream error:", err)
 			return

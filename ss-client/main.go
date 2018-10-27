@@ -14,7 +14,6 @@ package main
 
 import (
 	"crypto/sha256"
-	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
@@ -228,27 +227,17 @@ SOFTWARE.`)
 	}
 
 	// Generate new UUID/load saved UUID.
-	uuid, err := UUID()
+	uuid, err := UUID("Hexamine")
 	if err != nil {
 		Crash("Error while loading UUID:", err.Error())
 	}
-	fmt.Println("Our UUID:", base64.StdEncoding.EncodeToString(uuid))
+	fmt.Println("Our UUID:", uuid)
 	// Send it.
 	fmt.Println("Sending UUID...")
-	_, err = c.Write(uuid)
+	_, err = c.Write([]byte(uuid))
 	if err != nil {
 		Crash("Unable to send UUID", err.Error())
 	}
-
-	// Read & verify signature for UUID.
-	fmt.Println("Reading signature...")
-	uuidSig := [112]byte{}
-	c.Read(uuidSig[:])
-	valid := Verify(uuid, uuidSig)
-	if !valid {
-		Crash("Invalid UUID signature received")
-	}
-	fmt.Println("Valid UUID signature received.")
 
 	// Send hardware information if necessary.
 	shouldSend := false
@@ -317,11 +306,6 @@ SOFTWARE.`)
 		realSum := sha256.Sum256(p.Blob)
 		fmt.Println("Received file", p.FilePath,
 			"("+hex.EncodeToString(realSum[:])+")")
-
-		if !p.Verify() {
-			Crash("Signature check - FAILED!")
-		}
-		fmt.Println("Signature check - OK.")
 
 		// Ensure all directories exist.
 		err = os.MkdirAll(filepath.Dir(p.FilePath), 0770)
