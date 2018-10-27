@@ -23,7 +23,7 @@ import (
 )
 
 // SSProto version. Used to determine if clients need update.
-const SSProtoVersion uint8 = 1
+const SSProtoVersion uint8 = 2
 
 // This server's address used for connection listening.
 const address = "0.0.0.0:48879"
