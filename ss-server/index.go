@@ -28,14 +28,12 @@ type IndexedFile struct {
 	// Where file should be placed on client (relative to client root directory).
 	ClientPath string
 
-	Hash       [32]byte
-
 	// If true - file will be not replaced at client if it's already present
 	// (even if changed).
 	ShouldNotReplace bool
 }
 
-var filesMap map[[32]byte]IndexedFile
+var filesMap map[string]IndexedFile
 
 // A collection of snowflakes! ❄️
 // excludedPaths contains files that must not be indexed and sent to client.
@@ -86,12 +84,7 @@ func index(dir string, recursive bool, excludeFunc ExcludeFunc, shouldNotReplace
 				}
 			}
 
-			hash, err := fileHash(path)
-			if err != nil {
-				return err
-			}
-
-			res = append(res, IndexedFile{path, path, hash, shouldNotReplace})
+			res = append(res, IndexedFile{path, path, shouldNotReplace})
 			return nil
 		})
 	} else {
@@ -110,29 +103,19 @@ func index(dir string, recursive bool, excludeFunc ExcludeFunc, shouldNotReplace
 			}
 			fullFileName += f.Name()
 
-			hash, err := fileHash(fullFileName)
-			if err != nil {
-				return nil, err
-			}
-
-			res = append(res, IndexedFile{fullFileName, fullFileName, hash, shouldNotReplace})
+			res = append(res, IndexedFile{fullFileName, fullFileName, shouldNotReplace})
 		}
 	}
 	return res, err
 }
 
 func addFile(servPath, clientPath string, shouldNotReplace bool) error {
-	hash, err := fileHash(servPath)
-	if err != nil {
-		return err
-	}
-
-	filesMap[hash] = IndexedFile{servPath, clientPath, hash, shouldNotReplace}
+	filesMap[clientPath] = IndexedFile{servPath, clientPath, shouldNotReplace}
 	return nil
 }
 
 func ListFiles() {
-	filesMap = make(map[[32]byte]IndexedFile)
+	filesMap = make(map[string]IndexedFile)
 
 	// ==> Basic directories setup is here.
 	configs, err := index("config", true, allFiles, false)
@@ -159,7 +142,7 @@ func ListFiles() {
 	// Put everything into global table.
 	for _, part := range [][]IndexedFile{configs, mods, client, clientCfgs} {
 		for _, entry := range part {
-			filesMap[entry.Hash] = entry
+			filesMap[entry.ClientPath] = entry
 		}
 	}
 

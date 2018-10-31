@@ -31,13 +31,9 @@ func WriteHWInfo(out io.Writer) error {
 	return err
 }
 
-func SendHashListEntry(pipe io.ReadWriter, path string, hash []byte) (bool, error) {
-	err := binary.Write(pipe, binary.LittleEndian, hash)
-	if err != nil {
-		return false, err
-	}
+func SendIndexEntry(pipe io.ReadWriter, path string) (bool, error) {
 	bytesPath := []byte(path)
-	err = binary.Write(pipe, binary.LittleEndian, uint64(len(bytesPath)))
+	err := binary.Write(pipe, binary.LittleEndian, uint64(len(bytesPath)))
 	if err != nil {
 		return false, err
 	}
@@ -50,31 +46,21 @@ func SendHashListEntry(pipe io.ReadWriter, path string, hash []byte) (bool, erro
 	return resp, err
 }
 
-func FinishHashList(pipe io.ReadWriter) error {
+func FinishIndex(pipe io.ReadWriter) error {
 	zeroes := [32]byte{}
 	_, err := pipe.Write(zeroes[:])
 	return err
 }
 
 type Packet struct {
-	Hash      [32]byte
-	Signature [112]byte
-	FilePath  string
-	Blob      []byte
+	FilePath string
+	Blob     []byte
 }
 
 func ReadPacket(in io.Reader) (*Packet, error) {
 	res := new(Packet)
-	err := binary.Read(in, binary.LittleEndian, &res.Hash)
-	if err != nil {
-		return nil, err
-	}
-	err = binary.Read(in, binary.LittleEndian, &res.Signature)
-	if err != nil {
-		return nil, err
-	}
 	var size uint64
-	err = binary.Read(in, binary.LittleEndian, &size)
+	err := binary.Read(in, binary.LittleEndian, &size)
 	if err != nil {
 		return nil, err
 	}

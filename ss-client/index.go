@@ -13,15 +13,12 @@
 package main
 
 import (
-	"crypto/sha256"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
 )
 
-// excludedGlob is a collection of snowflakes ❄️
-// This is a list of files and dirs that should not be hashed. That is, their existence is ignored by updater.
+// excludedGlob is a collection of snowflakes ❄️ that must not be hashes
 var excludedGlob = []string{
 	"/?ignored_*",
 	"assets",
@@ -60,23 +57,4 @@ func collectRecurse(root string) ([]string, error) {
 	}
 	err := filepath.Walk(root, walkfn)
 	return res, err
-}
-
-func collectHashList() (map[string][]byte, error) {
-	res := make(map[string][]byte)
-
-	list, err := collectRecurse(".")
-	if err != nil {
-		return nil, err
-	}
-
-	for _, path := range list {
-		blob, err := ioutil.ReadFile(path)
-		if err != nil {
-			return nil, err
-		}
-		sum := sha256.Sum256(blob)
-		res[path] = sum[:]
-	}
-	return res, nil
 }

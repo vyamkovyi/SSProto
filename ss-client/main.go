@@ -13,9 +13,7 @@
 package main
 
 import (
-	"crypto/sha256"
 	"encoding/binary"
-	"encoding/hex"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -233,7 +231,6 @@ SOFTWARE.`)
 	}
 	fmt.Println("Our UUID:", uuid)
 	// Send it.
-	fmt.Println("Sending UUID...")
 	_, err = c.Write([]byte(uuid)[:32])
 	if err != nil {
 		Crash("Unable to send UUID", err.Error())
@@ -260,33 +257,33 @@ SOFTWARE.`)
 	}
 
 	// Collect hashes of files in config/ and mods/ and send them.
-	list, err := collectHashList()
+	list, err := collectRecurse(".")
 	if err != nil {
 		Crash("Unable to create hash list of files:", err.Error())
 	}
 	fmt.Println("Sending information about", len(list), "files...")
 
 	// Apply "changes" requested by server - delete excess files.
-	for k, v := range list {
-		fmt.Print(k)
-		resp, err := SendHashListEntry(c, k, v)
+	for _, v := range list {
+		fmt.Print(v)
+		resp, err := SendIndexEntry(c, v)
 		if err != nil {
 			fmt.Println(" - FAIL:", err)
-			Crash("Failed to send info about", k+":", err)
+			Crash("Failed to send info about", v+":", err)
 		}
 
 		if !resp {
-			if filepath.Dir(k) != "mods" {
+			if filepath.Dir(v) != "mods" {
 				fmt.Println(" - IGNORED")
 			} else {
 				fmt.Println(" - DELETE")
-				os.Remove(k)
+				os.Remove(v)
 			}
 		} else {
 			fmt.Println(" - OK")
 		}
 	}
-	err = FinishHashList(c)
+	err = FinishIndex(c)
 	if err != nil {
 		Crash("Failed to send hashlist terminator:", err)
 	}
@@ -303,9 +300,7 @@ SOFTWARE.`)
 			}
 			Crash("Error while receiving delta:", err.Error())
 		}
-		realSum := sha256.Sum256(p.Blob)
-		fmt.Println("Received file", p.FilePath,
-			"("+hex.EncodeToString(realSum[:])+")")
+		fmt.Println("Received file", p.FilePath)
 
 		// Ensure all directories exist.
 		err = os.MkdirAll(filepath.Dir(p.FilePath), 0770)

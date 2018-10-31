@@ -13,7 +13,6 @@
 package main
 
 import (
-	"bytes"
 	"encoding/base64"
 	"encoding/binary"
 	"io/ioutil"
@@ -37,7 +36,8 @@ func (s *Service) serve(conn *tls.Conn) {
 			log.Println("Stream error:", err)
 			return
 		}
-		binary.Write(conn, binary.LittleEndian, pv < SSProtoVersion)
+		// Return true if protocol version does not matches server-side version
+		binary.Write(conn, binary.LittleEndian, pv != SSProtoVersion)
 	}
 
 	// Expecting 32-bytes long identifier
@@ -48,7 +48,7 @@ func (s *Service) serve(conn *tls.Conn) {
 		return
 	}
 
-	// Record machine data if it wasn't recorded yet
+	// Record machine metrics and tell client just to launch the game
 	baseEncodedID := base64.StdEncoding.EncodeToString(data)
 	var machineData []byte
 
@@ -74,22 +74,11 @@ func (s *Service) serve(conn *tls.Conn) {
 		return
 	}
 
-	clientFiles := make(map[[32]byte]string)
+	clientFiles := make(map[string]string)
 	var clientList []string
 
-	// Get hashes from client and create an intersection
+	// Get client index and create an intersection of client and server lists
 	for {
-		// Expect file hash
-		var hash [32]byte
-		err = binary.Read(conn, binary.LittleEndian, &hash)
-		if err != nil {
-			log.Println("Stream error:", err)
-			return
-		}
-
-		if bytes.Equal(hash[:], make([]byte, 32)) {
-			break
-		}
 
 		// Expect size of file path string
 		err = binary.Read(conn, binary.LittleEndian, &size)
@@ -111,9 +100,9 @@ func (s *Service) serve(conn *tls.Conn) {
 
 		// Create intersection of client and server maps
 		contains := false
-		if v, ok := filesMap[hash]; ok {
+		if v, ok := filesMap[string(data)]; ok {
 			contains = true
-			clientFiles[hash] = v.ServPath
+			clientFiles[string(data)] = v.ServPath
 		}
 
 		// Answer if file is valid
@@ -124,8 +113,8 @@ func (s *Service) serve(conn *tls.Conn) {
 		}
 	}
 
-	// Remove difference from server files to create a list of mods that we need to send
-	changes := make(map[[32]byte]IndexedFile)
+	// Remove difference from server files to create list of mods that we must send
+	changes := make(map[string]IndexedFile)
 	for k, v := range filesMap {
 		if _, ok := clientFiles[k]; ok {
 			continue
@@ -148,13 +137,6 @@ func (s *Service) serve(conn *tls.Conn) {
 		s, err := ioutil.ReadFile(entry.ServPath)
 		if err != nil {
 			log.Panicln("Failed to read file", entry.ServPath)
-		}
-
-		// Generate and send hash
-		err = binary.Write(conn, binary.LittleEndian, entry.Hash)
-		if err != nil {
-			log.Println("Stream error:", err)
-			return
 		}
 
 		// Size of file path
