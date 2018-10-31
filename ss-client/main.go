@@ -234,7 +234,7 @@ SOFTWARE.`)
 	fmt.Println("Our UUID:", uuid)
 	// Send it.
 	fmt.Println("Sending UUID...")
-	_, err = c.Write([]byte(uuid))
+	_, err = c.Write([]byte(uuid)[:32])
 	if err != nil {
 		Crash("Unable to send UUID", err.Error())
 	}
