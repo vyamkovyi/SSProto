@@ -110,6 +110,10 @@ func index(dir string, recursive bool, excludeFunc ExcludeFunc, shouldNotReplace
 }
 
 func addFile(servPath, clientPath string, shouldNotReplace bool) error {
+	if _, err := os.Stat(servPath); err != nil {
+		return err
+	}
+
 	filesMap[clientPath] = IndexedFile{servPath, clientPath, shouldNotReplace}
 	return nil
 }
