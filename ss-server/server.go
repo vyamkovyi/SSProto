@@ -87,6 +87,10 @@ func (s *Service) serve(conn *tls.Conn) {
 			return
 		}
 
+		if size == 0 {
+			break
+		}
+
 		// Expect file path
 		data = make([]byte, size)
 		err = binary.Read(conn, binary.LittleEndian, data)
