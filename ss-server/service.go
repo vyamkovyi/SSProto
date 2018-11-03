@@ -13,22 +13,22 @@
 package main
 
 import (
+	"crypto/tls"
 	"log"
 	"net"
-	"time"
 	"sync"
-	"crypto/tls"
+	"time"
 )
 
 type Service struct {
 	quit chan bool
-	wg *sync.WaitGroup
+	wg   *sync.WaitGroup
 }
 
 func NewService() *Service {
 	s := &Service{
 		quit: make(chan bool),
-		wg: &sync.WaitGroup{},
+		wg:   &sync.WaitGroup{},
 	}
 	return s
 }

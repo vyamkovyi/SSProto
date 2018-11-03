@@ -70,10 +70,6 @@ func ReadPacket(in io.Reader) (*Packet, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = binary.Read(in, binary.LittleEndian, &res.Signature)
-	if err != nil {
-		return nil, err
-	}
 	var size uint64
 	err = binary.Read(in, binary.LittleEndian, &size)
 	if err != nil {
@@ -103,7 +99,5 @@ func (p Packet) Verify() bool {
 	if sum != p.Hash {
 		return false
 	}
-	// crypto.go
-	isValid := Verify(sum[:], p.Signature)
-	return isValid
+	return true
 }

@@ -33,7 +33,7 @@ import (
 )
 
 // SSProto protocol version. Used to determine if we need to update our updater.
-const SSProtoVersion uint8 = 1
+const SSProtoVersion uint8 = 2
 
 // This variable is set by build.sh
 var targetHost string
@@ -240,16 +240,6 @@ SOFTWARE.`)
 		Crash("Unable to send UUID", err.Error())
 	}
 
-	// Read & verify signature for UUID.
-	fmt.Println("Reading signature...")
-	uuidSig := [112]byte{}
-	c.Read(uuidSig[:])
-	valid := Verify(uuid, uuidSig)
-	if !valid {
-		Crash("Invalid UUID signature received")
-	}
-	fmt.Println("Valid UUID signature received.")
-
 	// Send hardware information if necessary.
 	shouldSend := false
 	err = binary.Read(c, binary.LittleEndian, &shouldSend)
@@ -304,7 +294,7 @@ SOFTWARE.`)
 
 	// Apply "changes" request by server - download new files.
 	for {
-		fmt.Println("Receiving packets...")
+		fmt.Println("Now downloading updates...")
 		p, err := ReadPacket(c)
 		if err != nil {
 			if err == io.EOF {
@@ -314,14 +304,13 @@ SOFTWARE.`)
 			}
 			Crash("Error while receiving delta:", err.Error())
 		}
+		fmt.Println("Received file", p.FilePath)
 		realSum := sha256.Sum256(p.Blob)
-		fmt.Println("Received file", p.FilePath,
-			"("+hex.EncodeToString(realSum[:])+")")
-
+		fmt.Println("Hash:", hex.EncodeToString(realSum[:]))
 		if !p.Verify() {
-			Crash("Signature check - FAILED!")
+			Crash("File integrity check failed!")
 		}
-		fmt.Println("Signature check - OK.")
+		fmt.Println("File integrity - OK.")
 
 		// Ensure all directories exist.
 		err = os.MkdirAll(filepath.Dir(p.FilePath), 0770)

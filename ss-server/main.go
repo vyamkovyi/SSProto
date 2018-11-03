@@ -13,17 +13,18 @@
 package main
 
 import (
+	"crypto/tls"
 	"fmt"
 	"log"
 	"net"
 	"os"
 	"os/signal"
 	"syscall"
-	"crypto/tls"
 )
 
 // SSProto version. Used to determine if clients need update.
-const SSProtoVersion uint8 = 1
+const SSProtoVersion uint8 = 2
+
 // This server's address used for connection listening.
 const address = "0.0.0.0:48879"
 
@@ -37,13 +38,6 @@ func main() {
 	log.Println("Copyright (C) Hexawolf  2018")
 	var err error
 
-	// See crypto.go
-	if _, err := os.Stat("ss.key"); err != nil {
-		MakeKeys()
-	} else {
-		LoadKeys()
-	}
-
 	// Initialize TLS
 	var cert tls.Certificate
 	cert, err = tls.LoadX509KeyPair("cert.pem", "key.pem")
@@ -51,8 +45,8 @@ func main() {
 		log.Panicln("Failed to initialize TLS:", err)
 	}
 	tlsConfig = tls.Config{
-		Certificates: []tls.Certificate{cert},
-		ServerName: "doggoat.de",
+		Certificates:       []tls.Certificate{cert},
+		ServerName:         "hexawolf.me",
 		InsecureSkipVerify: true,
 	}
 
