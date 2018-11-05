@@ -13,12 +13,13 @@
 package main
 
 import (
-	"golang.org/x/crypto/blake2b"
 	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"golang.org/x/crypto/blake2b"
 )
 
 // IndexedFile represents essential data shipped with the file during update.

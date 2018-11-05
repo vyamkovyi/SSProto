@@ -32,7 +32,7 @@ import (
 	"time"
 )
 
-// SSProto protocol version. Used to determine if we need to update our updater.
+// SSProtoVersion is a protocol version. Used to determine if we need to update this application.
 const SSProtoVersion uint8 = 2
 
 // This variable is set by build.sh
@@ -49,11 +49,11 @@ func launchClient() {
 	if noLaunch {
 		return
 	}
-	var com *exec.Cmd = nil
+	var com *exec.Cmd
 	if runtime.GOOS == "windows" {
 		com = exec.Command("Launch.bat")
 	} else {
-		os.Chmod("Launch.sh", 0770)
+		os.Chmod("Launch.sh", 0775)
 		com = exec.Command("./Launch.sh")
 	}
 	err := com.Run()
@@ -80,14 +80,12 @@ func Crash(data ...interface{}) {
 	fmt.Println("=============================================================")
 	log.SetFlags(log.Ldate | log.Ltime | log.LUTC)
 	logFile, err := os.OpenFile("ss-error.log",
-		os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0660)
+		os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0664)
 	if err != nil {
 		fmt.Println("Looks like you don't have write access.")
 		if runtime.GOOS == "windows" {
 			fmt.Println("Minecraft isn't really ought to be installed in Program Files.")
 		}
-		fmt.Println("You might want to run this application as administator if you don't really care about" +
-			"security. Alternatively, create directory in your user's home directory and install client there.")
 		log.Println(err)
 		log.Println("Crash cause:", data)
 	} else {
@@ -102,7 +100,7 @@ func Crash(data ...interface{}) {
 
 // main ✨✨✨
 func main() {
-	fmt.Println("ss-client REV2")
+	fmt.Println("ss-client REV", SSProtoVersion)
 	fmt.Println("Copyright (C) Hexawolf 2018")
 
 	if containsString(os.Args, "--help") {
@@ -111,8 +109,8 @@ func main() {
 		fmt.Println("--only-launch \t- Do not perform any updates, just launch the game.")
 		fmt.Println("--install-dir \"path\" \t- directory to install client.")
 		fmt.Println("--no-launch \t- Do not launch client after installation.")
-		fmt.Println("--legal \t- License and copyright.")
-		fmt.Println("--help \t- this.")
+		fmt.Println("--copyright \t- License and copyright.")
+		fmt.Println("--help \t\t- this.")
 		return
 	}
 
@@ -191,9 +189,9 @@ SOFTWARE.`)
 		}
 	}
 	fmt.Println("Default directory for installation is", installDirectory)
-	os.MkdirAll(installDirectory+"mods", 0770)
+	os.MkdirAll(installDirectory+"mods", 0775)
 	os.MkdirAll(installDirectory+"config", 0770)
-	os.MkdirAll(installDirectory+"versions", 0770)
+	os.MkdirAll(installDirectory+"versions", 0775)
 	os.Chdir(installDirectory)
 
 	// Send protocol version and get answer whether we must ask user for update
@@ -219,7 +217,7 @@ SOFTWARE.`)
 			fmt.Println("=================================================")
 			fmt.Println("PROTOCOL UPDATED! PLEASE UPDATE THIS APPLICATION!")
 			fmt.Println("=================================================")
-			fmt.Println("Download at https://hexawolf.me/hexamine/" + filename)
+			fmt.Println("Download at https://" + strings.Split(targetHost, ":")[0] + "/projects/hexamine/" + filename)
 			fmt.Println()
 			fmt.Println("Press enter to exit.")
 			bufio.NewReader(os.Stdin).ReadBytes('\n')
@@ -313,12 +311,12 @@ SOFTWARE.`)
 		fmt.Println("File integrity - OK.")
 
 		// Ensure all directories exist.
-		err = os.MkdirAll(filepath.Dir(p.FilePath), 0770)
+		err = os.MkdirAll(filepath.Dir(p.FilePath), 0775)
 		if err != nil {
 			Crash("Error while creating directories:", err.Error())
 		}
 
-		err = ioutil.WriteFile(p.FilePath, p.Blob, 0660)
+		err = ioutil.WriteFile(p.FilePath, p.Blob, 0664)
 		if err != nil {
 			Crash("Error writing file blob:", err.Error())
 		}
