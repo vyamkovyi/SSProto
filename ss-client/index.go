@@ -13,7 +13,7 @@
 package main
 
 import (
-	"crypto/sha256"
+	"golang.org/x/crypto/blake2b"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -75,7 +75,7 @@ func collectHashList() (map[string][]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		sum := sha256.Sum256(blob)
+		sum := blake2b.Sum256(blob)
 		res[path] = sum[:]
 	}
 	return res, nil
