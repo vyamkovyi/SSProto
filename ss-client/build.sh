@@ -2,7 +2,7 @@
 
 if [ $# -ne 3 ]; then
     echo "Usage: ./build.sh CERTIFICATE SERVER-ADDRESS FILENAME"
-    echo "E.g. ./build.sh cert.pem doggoat.de Updater"
+    echo "E.g. ./build.sh cert.pem doggoat.de:48879 Updater"
     echo "Also you can use EXTRABUILDFLAGS envvar to specify additional"
     echo "arguments to pass to go build."
     exit 1
