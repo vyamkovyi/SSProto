@@ -13,9 +13,9 @@
 package main
 
 import (
-	"crypto/sha256"
 	"encoding/binary"
 	"encoding/json"
+	"golang.org/x/crypto/blake2b"
 	"io"
 )
 
@@ -95,7 +95,7 @@ func ReadPacket(in io.Reader) (*Packet, error) {
 }
 
 func (p Packet) Verify() bool {
-	sum := sha256.Sum256(p.Blob)
+	sum := blake2b.Sum256(p.Blob)
 	if sum != p.Hash {
 		return false
 	}

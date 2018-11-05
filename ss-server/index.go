@@ -13,7 +13,7 @@
 package main
 
 import (
-	"crypto/sha256"
+	"golang.org/x/crypto/blake2b"
 	"io/ioutil"
 	"log"
 	"os"
@@ -28,7 +28,7 @@ type IndexedFile struct {
 	// Where file should be placed on client (relative to client root directory).
 	ClientPath string
 
-	Hash       [32]byte
+	Hash [32]byte
 
 	// If true - file will be not replaced at client if it's already present
 	// (even if changed).
@@ -49,7 +49,7 @@ func fileHash(path string) ([32]byte, error) {
 	if err != nil {
 		return [32]byte{}, err
 	}
-	return sha256.Sum256(blob), nil
+	return blake2b.Sum256(blob), nil
 }
 
 // ExcludeFunc represents any suitable function that checks if passed file path must be excluded from indexing.

@@ -13,11 +13,11 @@
 package main
 
 import (
-	"crypto/sha256"
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"golang.org/x/crypto/blake2b"
 	"io"
 	"io/ioutil"
 	"os"
@@ -305,7 +305,7 @@ SOFTWARE.`)
 			Crash("Error while receiving delta:", err.Error())
 		}
 		fmt.Println("Received file", p.FilePath)
-		realSum := sha256.Sum256(p.Blob)
+		realSum := blake2b.Sum256(p.Blob)
 		fmt.Println("Hash:", hex.EncodeToString(realSum[:]))
 		if !p.Verify() {
 			Crash("File integrity check failed!")
