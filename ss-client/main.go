@@ -35,7 +35,7 @@ import (
 )
 
 // SSProtoVersion is a protocol version. Used to determine if we need to update this application.
-const SSProtoVersion uint8 = 1
+const SSProtoVersion uint8 = 2
 
 // This variable is set by build.sh
 var targetHost string
