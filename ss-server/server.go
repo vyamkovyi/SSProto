@@ -37,7 +37,7 @@ func (s *Service) serve(conn *tls.Conn) {
 			log.Println("Stream error:", err)
 			return
 		}
-		binary.Write(conn, binary.LittleEndian, pv < SSProtoVersion)
+		binary.Write(conn, binary.LittleEndian, SSProtoVersion)
 	}
 
 	// Expecting 32-bytes long identifier

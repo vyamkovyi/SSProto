@@ -17,9 +17,11 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"github.com/inconshreveable/go-update"
 	"golang.org/x/crypto/blake2b"
 	"io"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"path/filepath"
 
@@ -33,7 +35,7 @@ import (
 )
 
 // SSProtoVersion is a protocol version. Used to determine if we need to update this application.
-const SSProtoVersion uint8 = 2
+const SSProtoVersion uint8 = 1
 
 // This variable is set by build.sh
 var targetHost string
@@ -98,9 +100,35 @@ func Crash(data ...interface{}) {
 	os.Exit(1)
 }
 
+func exePath() (string, error) {
+	prog := os.Args[0]
+	p, err := filepath.Abs(prog)
+	if err != nil {
+		return "", err
+	}
+	fi, err := os.Stat(p)
+	if err == nil {
+		if !fi.Mode().IsDir() {
+			return p, nil
+		}
+		err = fmt.Errorf("%s is directory", p)
+	}
+	if filepath.Ext(p) == "" {
+		p += ".exe"
+		fi, err := os.Stat(p)
+		if err == nil {
+			if !fi.Mode().IsDir() {
+				return p, nil
+			}
+			err = fmt.Errorf("%s is directory", p)
+		}
+	}
+	return "", err
+}
+
 // main ✨✨✨
 func main() {
-	fmt.Println("ss-client REV", SSProtoVersion)
+	fmt.Println("SSProto, protocol version:", SSProtoVersion)
 	fmt.Println("Copyright (C) Hexawolf 2018")
 
 	if containsString(os.Args, "--help") {
@@ -194,34 +222,52 @@ SOFTWARE.`)
 	os.MkdirAll(installDirectory+"versions", 0775)
 	os.Chdir(installDirectory)
 
-	// Send protocol version and get answer whether we must ask user for update
+	// Check protocol version
 	{
 		err = binary.Write(c, binary.LittleEndian, SSProtoVersion)
 		if err != nil {
 			Crash("Unable to send SSProto version:", err.Error())
 		}
-		var answer bool
-		err = binary.Read(c, binary.LittleEndian, answer)
+		var pv uint8
+		err = binary.Read(c, binary.LittleEndian, pv)
 		if err != nil {
 			Crash("Unable to read server protocol response:", err.Error())
 		}
-		if answer {
+		fmt.Println("Server protocol version:", pv)
+		if pv != SSProtoVersion {
 			c.Close()
 			filename := ""
 			if runtime.GOOS == "windows" {
 				filename = "Updater.exe"
-			} else if runtime.GOOS == "linux" {
+			} else if runtime.GOOS == "darwin" {
+				filename = "Updater-mac"
+			} else {
 				filename = "Updater"
 			}
-			fmt.Println()
-			fmt.Println("=================================================")
-			fmt.Println("PROTOCOL UPDATED! PLEASE UPDATE THIS APPLICATION!")
-			fmt.Println("=================================================")
-			fmt.Println("Download at https://" + strings.Split(targetHost, ":")[0] + "/projects/hexamine/" + filename)
-			fmt.Println()
-			fmt.Println("Press enter to exit.")
-			bufio.NewReader(os.Stdin).ReadBytes('\n')
-			os.Exit(0)
+			fmt.Println("Protocol version has changed, downloading latest updater version!")
+			resp, err := http.Get("https://" + strings.Split(targetHost, ":")[0] + "/projects/hexamine/" + filename)
+			if err != nil {
+				Crash("Protocol update failure:", err)
+			}
+			// Get full path to updater executable
+			executable, err := exePath()
+			if err != nil {
+				Crash("Protocol update failure:", err)
+			}
+			// Download new version and replace updater file
+			fmt.Println("Applying update and starting updater again...")
+			err = update.Apply(resp.Body, update.Options{})
+			if err != nil {
+				Crash("Protocol update failure:", err)
+			}
+			resp.Body.Close()
+			// Run new instance of this application
+			err = exec.Command(executable).Run()
+			if err != nil {
+				fmt.Println("A fatal error occurred causing new updater to fail:", err)
+				os.Exit(1)
+			}
+			return
 		}
 	}
 
@@ -292,7 +338,7 @@ SOFTWARE.`)
 
 	// Apply "changes" request by server - download new files.
 	for {
-		fmt.Println("Now downloading updates...")
+		fmt.Println("Listening for packets...")
 		p, err := ReadPacket(c)
 		if err != nil {
 			if err == io.EOF {

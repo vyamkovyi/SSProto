@@ -19,11 +19,10 @@ import (
 	"net"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 )
 
-// SSProto version. Used to determine if clients need update.
+// SSProtoVersion is a protocol version. Used to determine if clients need update.
 const SSProtoVersion uint8 = 2
 
 // This server's address used for connection listening.
