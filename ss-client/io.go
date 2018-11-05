@@ -19,6 +19,7 @@ import (
 	"io"
 )
 
+// WriteHWInfo writes machine information in form of JSON to given Writer.
 func WriteHWInfo(out io.Writer) error {
 	b, err := json.Marshal(GetMachineInfo())
 	if err != nil {
@@ -32,6 +33,7 @@ func WriteHWInfo(out io.Writer) error {
 	return err
 }
 
+// SendHashListEntry serializes packet to a given pipe
 func SendHashListEntry(pipe io.ReadWriter, path string, hash []byte) (bool, error) {
 	err := binary.Write(pipe, binary.LittleEndian, hash)
 	if err != nil {
@@ -51,19 +53,14 @@ func SendHashListEntry(pipe io.ReadWriter, path string, hash []byte) (bool, erro
 	return resp, err
 }
 
-func FinishHashList(pipe io.ReadWriter) error {
-	zeroes := [32]byte{}
-	_, err := pipe.Write(zeroes[:])
-	return err
-}
-
+// Packet is an update unit that contains file that needs to be updated and some metadata
 type Packet struct {
-	Hash      [32]byte
-	Signature [112]byte
-	FilePath  string
-	Blob      []byte
+	Hash     [32]byte
+	FilePath string
+	Blob     []byte
 }
 
+// ReadPacket deserializes packet structure from a binary stream
 func ReadPacket(in io.Reader) (*Packet, error) {
 	res := new(Packet)
 	err := binary.Read(in, binary.LittleEndian, &res.Hash)
@@ -94,6 +91,7 @@ func ReadPacket(in io.Reader) (*Packet, error) {
 	return res, nil
 }
 
+// Verify checks hash sum of a blob against hash specified in a packet
 func (p Packet) Verify() bool {
 	sum := blake2b.Sum256(p.Blob)
 	if sum != p.Hash {

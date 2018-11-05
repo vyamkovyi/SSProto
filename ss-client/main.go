@@ -331,7 +331,8 @@ SOFTWARE.`)
 			fmt.Println(" - OK")
 		}
 	}
-	err = FinishHashList(c)
+	zeroes := [32]byte{}
+	_, err = c.Write(zeroes[:])
 	if err != nil {
 		Crash("Failed to send hashlist terminator:", err)
 	}

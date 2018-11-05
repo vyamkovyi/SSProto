@@ -26,6 +26,7 @@ var conf tls.Config
 // Both variables are set by build script.
 var certEnc, keyEnc string
 
+// LoadKeys deserializes certificate stored in memory.
 func LoadKeys() error {
 	certs := x509.NewCertPool()
 	cert := "-----BEGIN CERTIFICATE-----\n" + certEnc + "\n-----END CERTIFICATE-----"
@@ -44,16 +45,17 @@ func newUUID() ([]byte, error) {
 	return v, err
 }
 
+// UUID tries to load from config/uuid.bin or generate a new random sequence of 32 bytes. This
+// sequence is used for client identification.
 func UUID() ([]byte, error) {
 	uuidLocation := "config/uuid.bin"
 	if fileExists(uuidLocation) {
 		return ioutil.ReadFile(uuidLocation)
-	} else {
-		b, err := newUUID()
-		if err != nil {
-			return nil, err
-		}
-		ioutil.WriteFile(uuidLocation, b, 0600)
-		return b, nil
 	}
+	b, err := newUUID()
+	if err != nil {
+		return nil, err
+	}
+	ioutil.WriteFile(uuidLocation, b, 0600)
+	return b, nil
 }
