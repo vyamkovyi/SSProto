@@ -19,8 +19,13 @@ import (
 	"encoding/binary"
 	"io/ioutil"
 	"log"
+	"sync"
 	"time"
 )
+
+// Client UUIDs seen since last reindexing. Used to filter repeated requests.
+var seenIDs map[string]struct{} = make(map[string]struct{})
+var seenIDsMtx sync.Mutex
 
 func (s *Service) serve(conn *tls.Conn) {
 	defer conn.Close()
@@ -46,6 +51,9 @@ func (s *Service) serve(conn *tls.Conn) {
 	if reindexRequired {
 		log.Println("Reindexing files...")
 		ListFiles()
+		seenIDsMtx.Lock()
+		seenIDs = make(map[string]struct{})
+		seenIDsMtx.Unlock()
 		log.Println("Reindexing done")
 		reindexRequired = false
 		reindexTimer.Stop()
@@ -64,7 +72,7 @@ func (s *Service) serve(conn *tls.Conn) {
 	baseEncodedID := base64.StdEncoding.EncodeToString(data)
 	var machineData []byte
 
-	if machineExists(baseEncodedID) {
+	if _, prs := seenIDs[baseEncodedID]; prs {
 		log.Println("Rejecting connection - already served today.")
 		err = binary.Write(conn, binary.LittleEndian, false)
 		if err != nil {
@@ -195,7 +203,10 @@ func (s *Service) serve(conn *tls.Conn) {
 
 	}
 
+	seenIDsMtx.Lock()
+	seenIDs[baseEncodedID] = struct{}{}
+	seenIDsMtx.Unlock()
 	// Logging virtual memory statistics received from the client to the log file
-	log.Println("HWInfo:", baseEncodedID+":"+string(machineData))
+	log.Println("HWInfo:", baseEncodedID+": "+string(machineData))
 	log.Println("Success!")
 }
