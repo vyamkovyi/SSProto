@@ -56,6 +56,7 @@ func SendHashListEntry(pipe io.ReadWriter, path string, hash []byte) (bool, erro
 type Packet struct {
 	FilePath string
 	Blob     io.Reader
+	Size     uint64
 }
 
 // ReadPacket deserializes packet structure from a binary stream
@@ -72,12 +73,11 @@ func ReadPacket(in io.Reader) (*Packet, error) {
 		return nil, err
 	}
 	res.FilePath = string(pathBytes)
-	size = uint64(0)
-	err = binary.Read(in, binary.LittleEndian, &size)
+	err = binary.Read(in, binary.LittleEndian, &res.Size)
 	if err != nil {
 		return nil, err
 	}
-	res.Blob = io.LimitReader(in, int64(size))
+	res.Blob = io.LimitReader(in, int64(res.Size))
 	return res, nil
 }
 

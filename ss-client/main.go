@@ -325,8 +325,8 @@ func main() {
 	}
 
 	// Apply "changes" request by server - download new files.
+	fmt.Println("Listening for packets...")
 	for {
-		fmt.Println("Listening for packets...")
 		p, err := ReadPacket(c)
 		if err != nil {
 			if err == io.EOF {
@@ -336,7 +336,6 @@ func main() {
 			}
 			Crash("Error while receiving delta:", err.Error())
 		}
-		fmt.Println("Received file", p.FilePath)
 
 		// Ensure all directories exist.
 		err = os.MkdirAll(filepath.Dir(p.FilePath), 0775)
@@ -349,7 +348,7 @@ func main() {
 			Crash("Error while opening write for writting:", err.Error())
 		}
 
-		_, err = io.Copy(f, p.Blob)
+		err = copyWithProgress(p.FilePath, p.Size, p.Blob, f)
 		if err != nil {
 			f.Close()
 			os.Remove(p.FilePath + ".new")
