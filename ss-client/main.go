@@ -337,8 +337,9 @@ SOFTWARE.`)
 		}
 		fmt.Println("Received file", p.FilePath)
 		realSum := blake2b.Sum256(p.Blob)
-		fmt.Println("Hash:", hex.EncodeToString(realSum[:]))
 		if !p.Verify() {
+			fmt.Println("Expected hash: ", hex.EncodeToString(p.Hash[:]))
+			fmt.Println("Actual Hash:", hex.EncodeToString(realSum[:]))
 			Crash("File integrity check failed!")
 		}
 		fmt.Println("File integrity - OK.")
