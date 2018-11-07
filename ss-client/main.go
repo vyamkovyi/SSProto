@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"github.com/inconshreveable/go-update"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -345,9 +344,23 @@ func main() {
 			Crash("Error while creating directories:", err.Error())
 		}
 
-		err = ioutil.WriteFile(p.FilePath, p.Blob, 0664)
+		f, err := os.Create(p.FilePath + ".new")
 		if err != nil {
+			Crash("Error while opening write for writting:", err.Error())
+		}
+
+		_, err = io.Copy(f, p.Blob)
+		if err != nil {
+			f.Close()
+			os.Remove(p.FilePath + ".new")
 			Crash("Error writing file blob:", err.Error())
+		}
+
+		f.Close()
+
+		err = os.Rename(p.FilePath+".new", p.FilePath)
+		if err != nil {
+			Crash("Error while rename new file:", err.Error())
 		}
 	}
 }

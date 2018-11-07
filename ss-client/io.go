@@ -55,7 +55,7 @@ func SendHashListEntry(pipe io.ReadWriter, path string, hash []byte) (bool, erro
 // Packet is an update unit that contains file that needs to be updated and some metadata
 type Packet struct {
 	FilePath string
-	Blob     []byte
+	Blob     io.Reader
 }
 
 // ReadPacket deserializes packet structure from a binary stream
@@ -77,10 +77,12 @@ func ReadPacket(in io.Reader) (*Packet, error) {
 	if err != nil {
 		return nil, err
 	}
-	res.Blob = make([]byte, size)
-	err = binary.Read(in, binary.LittleEndian, &res.Blob)
-	if err != nil {
-		return nil, err
-	}
+	res.Blob = io.LimitReader(in, int64(size))
 	return res, nil
+}
+
+// WriteTo implements io.WriterTo for Packet. Each packet must be
+// written before reading next one.
+func (p Packet) WriteTo(w io.Writer) (int64, error) {
+	return io.Copy(w, p.Blob)
 }
