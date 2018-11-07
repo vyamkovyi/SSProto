@@ -144,17 +144,10 @@ func (s *Service) serve(conn *tls.Conn) {
 			continue
 		}
 
-		// Read file
+		// Read file to memory
 		s, err := ioutil.ReadFile(entry.ServPath)
 		if err != nil {
 			log.Panicln("Failed to read file", entry.ServPath)
-		}
-
-		// Generate and send hash
-		err = binary.Write(conn, binary.LittleEndian, entry.Hash)
-		if err != nil {
-			log.Println("Stream error:", err)
-			return
 		}
 
 		// Size of file path

@@ -15,10 +15,8 @@ package main
 import (
 	"encoding/base64"
 	"encoding/binary"
-	"encoding/hex"
 	"fmt"
 	"github.com/inconshreveable/go-update"
-	"golang.org/x/crypto/blake2b"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -340,12 +338,6 @@ func main() {
 			Crash("Error while receiving delta:", err.Error())
 		}
 		fmt.Println("Received file", p.FilePath)
-		realSum := blake2b.Sum256(p.Blob)
-		fmt.Println("Hash:", hex.EncodeToString(realSum[:]))
-		if !p.Verify() {
-			Crash("File integrity check failed!")
-		}
-		fmt.Println("File integrity - OK.")
 
 		// Ensure all directories exist.
 		err = os.MkdirAll(filepath.Dir(p.FilePath), 0775)
