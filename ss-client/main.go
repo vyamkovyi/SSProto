@@ -215,7 +215,7 @@ SOFTWARE.`)
 			Crash("Unable to send SSProto version:", err.Error())
 		}
 		var pv uint8
-		err = binary.Read(c, binary.LittleEndian, pv)
+		err = binary.Read(c, binary.LittleEndian, &pv)
 		if err != nil {
 			Crash("Unable to read server protocol response:", err.Error())
 		}
