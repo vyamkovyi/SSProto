@@ -112,11 +112,7 @@ func exePath() (string, error) {
 	return ex, nil
 }
 
-// main ✨✨✨
-func main() {
-	fmt.Println("SSProto, protocol version:", SSProtoVersion)
-	fmt.Println("Copyright (C) Hexawolf 2018")
-
+func handleArgs() {
 	if containsString(os.Args, "--help") {
 		fmt.Println("Usage:")
 		fmt.Println("--force-current \t- Disable any directory checks and use current dir.")
@@ -178,6 +174,14 @@ SOFTWARE.`)
 			os.Exit(1)
 		}
 	}
+}
+
+// main ✨✨✨
+func main() {
+	fmt.Println("SSProto, protocol version:", SSProtoVersion)
+	fmt.Println("Copyright (C) Hexawolf 2018")
+
+	handleArgs()
 
 	fmt.Println("SSProto version:", SSProtoVersion)
 	// Load hardcoded key.
@@ -222,7 +226,7 @@ SOFTWARE.`)
 		fmt.Println("Server protocol version:", pv)
 		if pv != SSProtoVersion {
 			c.Close()
-			filename := ""
+			var filename string
 			if runtime.GOOS == "windows" {
 				filename = "Updater.exe"
 			} else if runtime.GOOS == "darwin" {
