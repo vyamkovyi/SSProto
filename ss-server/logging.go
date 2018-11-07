@@ -36,9 +36,8 @@ func Rotate(prefix string, suffix string, directory string) {
 		if os.IsNotExist(err) {
 			err = os.Mkdir(directory, 0740)
 			return
-		} else {
-			log.Fatal(err)
 		}
+		log.Fatal(err)
 	}
 
 	// Collect list of real log files

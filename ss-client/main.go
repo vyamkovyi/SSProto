@@ -101,29 +101,15 @@ func Crash(data ...interface{}) {
 }
 
 func exePath() (string, error) {
-	prog := os.Args[0]
-	p, err := filepath.Abs(prog)
+	ex, err := os.Executable()
 	if err != nil {
 		return "", err
 	}
-	fi, err := os.Stat(p)
-	if err == nil {
-		if !fi.Mode().IsDir() {
-			return p, nil
-		}
-		err = fmt.Errorf("%s is directory", p)
+	ex, err = filepath.Abs(ex)
+	if err != nil {
+		return "", err
 	}
-	if filepath.Ext(p) == "" {
-		p += ".exe"
-		fi, err := os.Stat(p)
-		if err == nil {
-			if !fi.Mode().IsDir() {
-				return p, nil
-			}
-			err = fmt.Errorf("%s is directory", p)
-		}
-	}
-	return "", err
+	return ex, nil
 }
 
 // main ✨✨✨
