@@ -105,12 +105,7 @@ func index(dir string, recursive bool, excludeFunc ExcludeFunc, shouldNotReplace
 				continue
 			}
 
-			fullFileName := dir
-			if !(strings.HasSuffix(fullFileName, "/") || strings.HasSuffix(fullFileName, "\\")) {
-				fullFileName += string(os.PathSeparator)
-			}
-			fullFileName += f.Name()
-
+			fullFileName := filepath.Join(dir, f.Name())
 			hash, err := fileHash(fullFileName)
 			if err != nil {
 				return nil, err
