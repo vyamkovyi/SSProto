@@ -15,10 +15,8 @@ package main
 import (
 	"encoding/base64"
 	"encoding/binary"
-	"encoding/hex"
 	"fmt"
 	"github.com/inconshreveable/go-update"
-	"golang.org/x/crypto/blake2b"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -112,11 +110,7 @@ func exePath() (string, error) {
 	return ex, nil
 }
 
-// main ✨✨✨
-func main() {
-	fmt.Println("SSProto, protocol version:", SSProtoVersion)
-	fmt.Println("Copyright (C) Hexawolf 2018")
-
+func handleArgs() {
 	if containsString(os.Args, "--help") {
 		fmt.Println("Usage:")
 		fmt.Println("--force-current \t- Disable any directory checks and use current dir.")
@@ -178,6 +172,14 @@ SOFTWARE.`)
 			os.Exit(1)
 		}
 	}
+}
+
+// main ✨✨✨
+func main() {
+	fmt.Println("SSProto, protocol version:", SSProtoVersion)
+	fmt.Println("Copyright (C) Hexawolf 2018")
+
+	handleArgs()
 
 	fmt.Println("SSProto version:", SSProtoVersion)
 	// Load hardcoded key.
@@ -222,7 +224,7 @@ SOFTWARE.`)
 		fmt.Println("Server protocol version:", pv)
 		if pv != SSProtoVersion {
 			c.Close()
-			filename := ""
+			var filename string
 			if runtime.GOOS == "windows" {
 				filename = "Updater.exe"
 			} else if runtime.GOOS == "darwin" {
@@ -336,13 +338,6 @@ SOFTWARE.`)
 			Crash("Error while receiving delta:", err.Error())
 		}
 		fmt.Println("Received file", p.FilePath)
-		realSum := blake2b.Sum256(p.Blob)
-		if !p.Verify() {
-			fmt.Println("Expected hash: ", hex.EncodeToString(p.Hash[:]))
-			fmt.Println("Actual Hash:", hex.EncodeToString(realSum[:]))
-			Crash("File integrity check failed!")
-		}
-		fmt.Println("File integrity - OK.")
 
 		// Ensure all directories exist.
 		err = os.MkdirAll(filepath.Dir(p.FilePath), 0775)

@@ -15,7 +15,6 @@ package main
 import (
 	"encoding/binary"
 	"encoding/json"
-	"golang.org/x/crypto/blake2b"
 	"io"
 )
 
@@ -55,7 +54,6 @@ func SendHashListEntry(pipe io.ReadWriter, path string, hash []byte) (bool, erro
 
 // Packet is an update unit that contains file that needs to be updated and some metadata
 type Packet struct {
-	Hash     [32]byte
 	FilePath string
 	Blob     []byte
 }
@@ -63,12 +61,8 @@ type Packet struct {
 // ReadPacket deserializes packet structure from a binary stream
 func ReadPacket(in io.Reader) (*Packet, error) {
 	res := new(Packet)
-	err := binary.Read(in, binary.LittleEndian, &res.Hash)
-	if err != nil {
-		return nil, err
-	}
 	var size uint64
-	err = binary.Read(in, binary.LittleEndian, &size)
+	err := binary.Read(in, binary.LittleEndian, &size)
 	if err != nil {
 		return nil, err
 	}
@@ -89,13 +83,4 @@ func ReadPacket(in io.Reader) (*Packet, error) {
 		return nil, err
 	}
 	return res, nil
-}
-
-// Verify checks hash sum of a blob against hash specified in a packet
-func (p Packet) Verify() bool {
-	sum := blake2b.Sum256(p.Blob)
-	if sum != p.Hash {
-		return false
-	}
-	return true
 }
