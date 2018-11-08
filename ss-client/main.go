@@ -299,25 +299,27 @@ func main() {
 	fmt.Println("Sending information about", len(list), "files...")
 
 	// Apply "changes" requested by server - delete excess files.
+	orderedList := make([]string, 0, len(list))
 	for k, v := range list {
-		fmt.Print(k)
-		resp, err := SendHashListEntry(c, k, v)
+		err := SendHashListEntry(c, k, v)
 		if err != nil {
-			fmt.Println(" - FAIL:", err)
 			Crash("Failed to send info about", k+":", err)
 		}
+		orderedList = append(orderedList, k)
+	}
+	for _, path := range orderedList {
+		resp := true
+		err := binary.Read(c, binary.LittleEndian, &resp)
+		if err != nil {
+			Crash("Failed to read server's response about", path+":", err)
+		}
 
-		if !resp {
-			if filepath.Dir(k) != "mods" {
-				fmt.Println(" - IGNORED")
-			} else {
-				fmt.Println(" - DELETE")
-				os.Remove(k)
-			}
-		} else {
-			fmt.Println(" - OK")
+		if !resp && filepath.Dir(path) == "mods" {
+			fmt.Println("Removing", path)
+			os.Remove(path)
 		}
 	}
+
 	zeroes := [32]byte{}
 	_, err = c.Write(zeroes[:])
 	if err != nil {
