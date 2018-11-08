@@ -118,7 +118,7 @@ func handleArgs() {
 		fmt.Println("--no-launch \t- Do not launch client after installation.")
 		fmt.Println("--copyright \t- License and copyright.")
 		fmt.Println("--help \t\t- this.")
-		return
+		os.Exit(0)
 	}
 
 	if containsString(os.Args, "--legal") {
