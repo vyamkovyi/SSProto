@@ -13,22 +13,22 @@
 package main
 
 import (
+	"bufio"
+	"crypto/tls"
 	"encoding/base64"
 	"encoding/binary"
 	"fmt"
-	"github.com/inconshreveable/go-update"
 	"io"
+	"log"
 	"net/http"
 	"os"
-	"path/filepath"
-
-	"bufio"
-	"crypto/tls"
-	"log"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
+
+	"github.com/inconshreveable/go-update"
 )
 
 // SSProtoVersion is a protocol version. Used to determine if we need to update this application.

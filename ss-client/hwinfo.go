@@ -13,8 +13,9 @@
 package main
 
 import (
-	"github.com/shirou/gopsutil/mem"
 	"runtime"
+
+	"github.com/shirou/gopsutil/mem"
 )
 
 // MachineInfo contains memory statistics of a machine running client.

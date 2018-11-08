@@ -13,11 +13,12 @@
 package main
 
 import (
-	"golang.org/x/crypto/blake2b"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
+
+	"golang.org/x/crypto/blake2b"
 )
 
 // excludedGlob is a collection of snowflakes ❄️

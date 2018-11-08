@@ -14,13 +14,12 @@ package main
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding/base64"
 	"encoding/binary"
 	"io/ioutil"
 	"log"
 	"time"
-
-	"crypto/tls"
 )
 
 func (s *Service) serve(conn *tls.Conn) {
