@@ -19,8 +19,13 @@ import (
 	"encoding/binary"
 	"io/ioutil"
 	"log"
+	"sync"
 	"time"
 )
+
+// Client UUIDs seen since last reindexing. Used to filter repeated requests.
+var seenIDs map[string]struct{} = make(map[string]struct{})
+var seenIDsMtx sync.Mutex
 
 func (s *Service) serve(conn *tls.Conn) {
 	defer conn.Close()
@@ -39,6 +44,22 @@ func (s *Service) serve(conn *tls.Conn) {
 		binary.Write(conn, binary.LittleEndian, SSProtoVersion)
 	}
 
+	// Force pending reindexing if any so we will not
+	// send newer version of file when we have only
+	// hash of older version.
+	filesMapLock.Lock()
+	if reindexRequired {
+		log.Println("Reindexing files...")
+		ListFiles()
+		seenIDsMtx.Lock()
+		seenIDs = make(map[string]struct{})
+		seenIDsMtx.Unlock()
+		log.Println("Reindexing done")
+		reindexRequired = false
+		reindexTimer.Stop()
+	}
+	filesMapLock.Unlock()
+
 	// Expecting 32-bytes long identifier
 	data := make([]byte, 32)
 	err := binary.Read(conn, binary.LittleEndian, data)
@@ -51,7 +72,7 @@ func (s *Service) serve(conn *tls.Conn) {
 	baseEncodedID := base64.StdEncoding.EncodeToString(data)
 	var machineData []byte
 
-	if machineExists(baseEncodedID) {
+	if _, prs := seenIDs[baseEncodedID]; prs {
 		log.Println("Rejecting connection - already served today.")
 		err = binary.Write(conn, binary.LittleEndian, false)
 		if err != nil {
@@ -75,6 +96,9 @@ func (s *Service) serve(conn *tls.Conn) {
 
 	clientFiles := make(map[[32]byte]string)
 	var clientList []string
+
+	filesMapLock.RLock()
+	defer filesMapLock.RUnlock()
 
 	// Get hashes from client and create an intersection
 	for {
@@ -179,7 +203,10 @@ func (s *Service) serve(conn *tls.Conn) {
 
 	}
 
+	seenIDsMtx.Lock()
+	seenIDs[baseEncodedID] = struct{}{}
+	seenIDsMtx.Unlock()
 	// Logging virtual memory statistics received from the client to the log file
-	log.Println("HWInfo:", baseEncodedID+":"+string(machineData))
+	log.Println("HWInfo:", baseEncodedID+": "+string(machineData))
 	log.Println("Success!")
 }

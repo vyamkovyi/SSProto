@@ -13,7 +13,6 @@
 package main
 
 import (
-	"bufio"
 	"io"
 	"io/ioutil"
 	"log"
@@ -21,7 +20,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 )
 
 // Rotate function performs logs rotation in specified directory. It checks existence of prefix.N.suffix files and
@@ -76,21 +74,4 @@ func LogInitialize() {
 	}
 	multiWriter := io.MultiWriter(os.Stdout, logFile)
 	log.SetOutput(multiWriter)
-}
-
-var mut = &sync.Mutex{}
-
-// Check if machine was already logged to the log file
-func machineExists(id string) bool {
-	mut.Lock()
-	logFile.Seek(0, 0)
-	defer logFile.Seek(0, 2)
-	defer mut.Unlock()
-	scanner := bufio.NewScanner(logFile)
-	for scanner.Scan() {
-		if strings.Contains(scanner.Text(), id) {
-			return true
-		}
-	}
-	return false
 }
