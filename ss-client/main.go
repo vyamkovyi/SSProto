@@ -13,27 +13,26 @@
 package main
 
 import (
-	"crypto/sha256"
-	"encoding/base64"
-	"encoding/binary"
-	"encoding/hex"
-	"fmt"
-	"io"
-	"io/ioutil"
-	"os"
-	"path/filepath"
-
 	"bufio"
 	"crypto/tls"
+	"encoding/base64"
+	"encoding/binary"
+	"fmt"
+	"io"
 	"log"
+	"net/http"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
+
+	"github.com/inconshreveable/go-update"
 )
 
-// SSProto protocol version. Used to determine if we need to update our updater.
-const SSProtoVersion uint8 = 1
+// SSProtoVersion is a protocol version. Used to determine if we need to update this application.
+const SSProtoVersion uint8 = 2
 
 // This variable is set by build.sh
 var targetHost string
@@ -49,11 +48,11 @@ func launchClient() {
 	if noLaunch {
 		return
 	}
-	var com *exec.Cmd = nil
+	var com *exec.Cmd
 	if runtime.GOOS == "windows" {
 		com = exec.Command("Launch.bat")
 	} else {
-		os.Chmod("Launch.sh", 0770)
+		os.Chmod("Launch.sh", 0775)
 		com = exec.Command("./Launch.sh")
 	}
 	err := com.Run()
@@ -80,14 +79,12 @@ func Crash(data ...interface{}) {
 	fmt.Println("=============================================================")
 	log.SetFlags(log.Ldate | log.Ltime | log.LUTC)
 	logFile, err := os.OpenFile("ss-error.log",
-		os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0660)
+		os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0664)
 	if err != nil {
 		fmt.Println("Looks like you don't have write access.")
 		if runtime.GOOS == "windows" {
 			fmt.Println("Minecraft isn't really ought to be installed in Program Files.")
 		}
-		fmt.Println("You might want to run this application as administator if you don't really care about" +
-			"security. Alternatively, create directory in your user's home directory and install client there.")
 		log.Println(err)
 		log.Println("Crash cause:", data)
 	} else {
@@ -100,20 +97,28 @@ func Crash(data ...interface{}) {
 	os.Exit(1)
 }
 
-// main ✨✨✨
-func main() {
-	fmt.Println("ss-client REV2")
-	fmt.Println("Copyright (C) Hexawolf 2018")
+func exePath() (string, error) {
+	ex, err := os.Executable()
+	if err != nil {
+		return "", err
+	}
+	ex, err = filepath.Abs(ex)
+	if err != nil {
+		return "", err
+	}
+	return ex, nil
+}
 
+func handleArgs() {
 	if containsString(os.Args, "--help") {
 		fmt.Println("Usage:")
 		fmt.Println("--force-current \t- Disable any directory checks and use current dir.")
 		fmt.Println("--only-launch \t- Do not perform any updates, just launch the game.")
 		fmt.Println("--install-dir \"path\" \t- directory to install client.")
 		fmt.Println("--no-launch \t- Do not launch client after installation.")
-		fmt.Println("--legal \t- License and copyright.")
-		fmt.Println("--help \t- this.")
-		return
+		fmt.Println("--copyright \t- License and copyright.")
+		fmt.Println("--help \t\t- this.")
+		os.Exit(0)
 	}
 
 	if containsString(os.Args, "--legal") {
@@ -166,6 +171,14 @@ SOFTWARE.`)
 			os.Exit(1)
 		}
 	}
+}
+
+// main ✨✨✨
+func main() {
+	fmt.Println("SSProto, protocol version:", SSProtoVersion)
+	fmt.Println("Copyright (C) Hexawolf 2018")
+
+	handleArgs()
 
 	fmt.Println("SSProto version:", SSProtoVersion)
 	// Load hardcoded key.
@@ -191,39 +204,57 @@ SOFTWARE.`)
 		}
 	}
 	fmt.Println("Default directory for installation is", installDirectory)
-	os.MkdirAll(installDirectory+"mods", 0770)
+	os.MkdirAll(installDirectory+"mods", 0775)
 	os.MkdirAll(installDirectory+"config", 0770)
-	os.MkdirAll(installDirectory+"versions", 0770)
+	os.MkdirAll(installDirectory+"versions", 0775)
 	os.Chdir(installDirectory)
 
-	// Send protocol version and get answer whether we must ask user for update
+	// Check protocol version
 	{
 		err = binary.Write(c, binary.LittleEndian, SSProtoVersion)
 		if err != nil {
 			Crash("Unable to send SSProto version:", err.Error())
 		}
-		var answer bool
-		err = binary.Read(c, binary.LittleEndian, answer)
+		var pv uint8
+		err = binary.Read(c, binary.LittleEndian, &pv)
 		if err != nil {
 			Crash("Unable to read server protocol response:", err.Error())
 		}
-		if answer {
+		fmt.Println("Server protocol version:", pv)
+		if pv != SSProtoVersion {
 			c.Close()
-			filename := ""
+			var filename string
 			if runtime.GOOS == "windows" {
 				filename = "Updater.exe"
-			} else if runtime.GOOS == "linux" {
+			} else if runtime.GOOS == "darwin" {
+				filename = "Updater-mac"
+			} else {
 				filename = "Updater"
 			}
-			fmt.Println()
-			fmt.Println("=================================================")
-			fmt.Println("PROTOCOL UPDATED! PLEASE UPDATE THIS APPLICATION!")
-			fmt.Println("=================================================")
-			fmt.Println("Download at https://hexawolf.me/hexamine/" + filename)
-			fmt.Println()
-			fmt.Println("Press enter to exit.")
-			bufio.NewReader(os.Stdin).ReadBytes('\n')
-			os.Exit(0)
+			fmt.Println("Protocol version has changed, downloading latest updater version!")
+			resp, err := http.Get("https://" + strings.Split(targetHost, ":")[0] + "/projects/hexamine/" + filename)
+			if err != nil {
+				Crash("Protocol update failure:", err)
+			}
+			// Get full path to updater executable
+			executable, err := exePath()
+			if err != nil {
+				Crash("Protocol update failure:", err)
+			}
+			// Download new version and replace updater file
+			fmt.Println("Applying update and starting updater again...")
+			err = update.Apply(resp.Body, update.Options{})
+			if err != nil {
+				Crash("Protocol update failure:", err)
+			}
+			resp.Body.Close()
+			// Run new instance of this application
+			err = exec.Command(executable).Run()
+			if err != nil {
+				fmt.Println("A fatal error occurred causing new updater to fail:", err)
+				os.Exit(1)
+			}
+			return
 		}
 	}
 
@@ -239,16 +270,6 @@ SOFTWARE.`)
 	if err != nil {
 		Crash("Unable to send UUID", err.Error())
 	}
-
-	// Read & verify signature for UUID.
-	fmt.Println("Reading signature...")
-	uuidSig := [112]byte{}
-	c.Read(uuidSig[:])
-	valid := Verify(uuid, uuidSig)
-	if !valid {
-		Crash("Invalid UUID signature received")
-	}
-	fmt.Println("Valid UUID signature received.")
 
 	// Send hardware information if necessary.
 	shouldSend := false
@@ -278,33 +299,36 @@ SOFTWARE.`)
 	fmt.Println("Sending information about", len(list), "files...")
 
 	// Apply "changes" requested by server - delete excess files.
+	orderedList := make([]string, 0, len(list))
 	for k, v := range list {
-		fmt.Print(k)
-		resp, err := SendHashListEntry(c, k, v)
+		err := SendHashListEntry(c, k, v)
 		if err != nil {
-			fmt.Println(" - FAIL:", err)
 			Crash("Failed to send info about", k+":", err)
 		}
+		orderedList = append(orderedList, k)
+	}
+	for _, path := range orderedList {
+		resp := true
+		err := binary.Read(c, binary.LittleEndian, &resp)
+		if err != nil {
+			Crash("Failed to read server's response about", path+":", err)
+		}
 
-		if !resp {
-			if filepath.Dir(k) != "mods" {
-				fmt.Println(" - IGNORED")
-			} else {
-				fmt.Println(" - DELETE")
-				os.Remove(k)
-			}
-		} else {
-			fmt.Println(" - OK")
+		if !resp && filepath.Dir(path) == "mods" {
+			fmt.Println("Removing", path)
+			os.Remove(path)
 		}
 	}
-	err = FinishHashList(c)
+
+	zeroes := [32]byte{}
+	_, err = c.Write(zeroes[:])
 	if err != nil {
 		Crash("Failed to send hashlist terminator:", err)
 	}
 
 	// Apply "changes" request by server - download new files.
+	fmt.Println("Listening for packets...")
 	for {
-		fmt.Println("Receiving packets...")
 		p, err := ReadPacket(c)
 		if err != nil {
 			if err == io.EOF {
@@ -314,24 +338,30 @@ SOFTWARE.`)
 			}
 			Crash("Error while receiving delta:", err.Error())
 		}
-		realSum := sha256.Sum256(p.Blob)
-		fmt.Println("Received file", p.FilePath,
-			"("+hex.EncodeToString(realSum[:])+")")
-
-		if !p.Verify() {
-			Crash("Signature check - FAILED!")
-		}
-		fmt.Println("Signature check - OK.")
 
 		// Ensure all directories exist.
-		err = os.MkdirAll(filepath.Dir(p.FilePath), 0770)
+		err = os.MkdirAll(filepath.Dir(p.FilePath), 0775)
 		if err != nil {
 			Crash("Error while creating directories:", err.Error())
 		}
 
-		err = ioutil.WriteFile(p.FilePath, p.Blob, 0660)
+		f, err := os.Create(p.FilePath + ".new")
 		if err != nil {
+			Crash("Error while opening write for writting:", err.Error())
+		}
+
+		err = copyWithProgress(p.FilePath, p.Size, p.Blob, f)
+		if err != nil {
+			f.Close()
+			os.Remove(p.FilePath + ".new")
 			Crash("Error writing file blob:", err.Error())
+		}
+
+		f.Close()
+
+		err = os.Rename(p.FilePath+".new", p.FilePath)
+		if err != nil {
+			Crash("Error while rename new file:", err.Error())
 		}
 	}
 }

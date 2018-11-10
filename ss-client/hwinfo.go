@@ -14,9 +14,11 @@ package main
 
 import (
 	"runtime"
+
 	"github.com/shirou/gopsutil/mem"
 )
 
+// MachineInfo contains memory statistics of a machine running client.
 type MachineInfo struct {
 	// Total amount of RAM on this system
 	MemoryTotal uint64 `json:"mem_total"`
@@ -41,9 +43,10 @@ type MachineInfo struct {
 	MemoryFree uint64 `json:"mem_free"`
 
 	// User's operating system, just GOOS variable
-	OS  string `json:"os"`
+	OS string `json:"os"`
 }
 
+// GetMachineInfo tries to get some machine information and create a MachineInfo instance
 func GetMachineInfo() MachineInfo {
 	var info MachineInfo
 	v, err := mem.VirtualMemory()

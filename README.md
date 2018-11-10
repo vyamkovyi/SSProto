@@ -1,5 +1,7 @@
 # SSProto
 
+[![Build Status](https://travis-ci.com/Hexawolf/SSProto.svg?branch=dev)](https://travis-ci.com/Hexawolf/SSProto)
+
 SSProto is a fairly simple but flexible and secure TCP protocol for deploying
 game client updates. Initially, it was developed as a part of Hexamine project
 (a Minecraft server) but turns out to be useful outside of Minecraft
@@ -30,14 +32,7 @@ specifically for Hexamine client, it is obvious that SSProto (as well as this
 program) may be tuned for more applications where it is essential to keep only
 specific server files in sync with clients.
 
-## Is it secure?
-
-All communications are secured by hardcoded TLS key. However, it is expected
-that received files may contain executable data. For this reason, files are
-also signed by ed448-decaf key, which is fast enough if you care about the
-speed.
-
-## Copyrights?
+## License
 
 Copyright © 2018 Hexawolf
 

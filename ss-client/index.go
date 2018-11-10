@@ -13,11 +13,12 @@
 package main
 
 import (
+	"io/ioutil"
+	"os"
 	"path/filepath"
 	"regexp"
-	"os"
-	"io/ioutil"
-	"crypto/sha256"
+
+	"golang.org/x/crypto/blake2b"
 )
 
 // excludedGlob is a collection of snowflakes ❄️
@@ -70,18 +71,12 @@ func collectHashList() (map[string][]byte, error) {
 		return nil, err
 	}
 
-	// A very special snowflake for Hexamine ❄️
-	authlib := "libraries/com/mojang/authlib/1.5.25/authlib-1.5.25.jar"
-	if fileExists(authlib) {
-		list = append(list, filepath.ToSlash(authlib))
-	}
-
 	for _, path := range list {
 		blob, err := ioutil.ReadFile(path)
 		if err != nil {
 			return nil, err
 		}
-		sum := sha256.Sum256(blob)
+		sum := blake2b.Sum256(blob)
 		res[path] = sum[:]
 	}
 	return res, nil

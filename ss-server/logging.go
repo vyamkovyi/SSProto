@@ -13,15 +13,13 @@
 package main
 
 import (
+	"io"
 	"io/ioutil"
-	"os"
 	"log"
-	"strings"
+	"os"
 	"sort"
 	"strconv"
-	"io"
-	"sync"
-	"bufio"
+	"strings"
 )
 
 // Rotate function performs logs rotation in specified directory. It checks existence of prefix.N.suffix files and
@@ -36,9 +34,8 @@ func Rotate(prefix string, suffix string, directory string) {
 		if os.IsNotExist(err) {
 			err = os.Mkdir(directory, 0740)
 			return
-		} else {
-			log.Fatal(err)
 		}
+		log.Fatal(err)
 	}
 
 	// Collect list of real log files
@@ -60,8 +57,7 @@ func Rotate(prefix string, suffix string, directory string) {
 			break
 		}
 	}
-	os.Rename(directory + prefix + suffix,
-		directory + prefix + strconv.Itoa(num+1) + "." + suffix)
+	os.Rename(directory+prefix+suffix, directory+prefix+strconv.Itoa(num+1)+"."+suffix)
 }
 
 var logFile *os.File
@@ -70,29 +66,12 @@ var logFile *os.File
 func LogInitialize() {
 	log.SetFlags(log.Ldate | log.Ltime | log.LUTC)
 	Rotate("sss", "log", "logs/")
-	var err error = nil
+	var err error
 	logFile, err = os.OpenFile("logs/sss.log",
-		os.O_CREATE | os.O_RDWR, 0660)
+		os.O_CREATE|os.O_RDWR, 0660)
 	if err != nil {
 		log.Panicln(err)
 	}
 	multiWriter := io.MultiWriter(os.Stdout, logFile)
 	log.SetOutput(multiWriter)
-}
-
-var mut = &sync.Mutex{}
-
-// Check if machine was already logged to the log file
-func machineExists(id string) bool {
-	mut.Lock()
-	logFile.Seek(0, 0)
-	defer logFile.Seek(0, 2)
-	defer mut.Unlock()
-	scanner := bufio.NewScanner(logFile)
-	for scanner.Scan() {
-		if strings.Contains(scanner.Text(), id) {
-			return true
-		}
-	}
-	return false
 }

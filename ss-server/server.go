@@ -14,15 +14,18 @@ package main
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding/base64"
 	"encoding/binary"
 	"io/ioutil"
 	"log"
+	"sync"
 	"time"
-
-	"github.com/twstrike/ed448"
-	"crypto/tls"
 )
+
+// Client UUIDs seen since last reindexing. Used to filter repeated requests.
+var seenIDs map[string]struct{} = make(map[string]struct{})
+var seenIDsMtx sync.Mutex
 
 func (s *Service) serve(conn *tls.Conn) {
 	defer conn.Close()
@@ -38,8 +41,24 @@ func (s *Service) serve(conn *tls.Conn) {
 			log.Println("Stream error:", err)
 			return
 		}
-		binary.Write(conn, binary.LittleEndian, pv < SSProtoVersion)
+		binary.Write(conn, binary.LittleEndian, SSProtoVersion)
 	}
+
+	// Force pending reindexing if any so we will not
+	// send newer version of file when we have only
+	// hash of older version.
+	filesMapLock.Lock()
+	if reindexRequired {
+		log.Println("Reindexing files...")
+		ListFiles()
+		seenIDsMtx.Lock()
+		seenIDs = make(map[string]struct{})
+		seenIDsMtx.Unlock()
+		log.Println("Reindexing done")
+		reindexRequired = false
+		reindexTimer.Stop()
+	}
+	filesMapLock.Unlock()
 
 	// Expecting 32-bytes long identifier
 	data := make([]byte, 32)
@@ -49,25 +68,11 @@ func (s *Service) serve(conn *tls.Conn) {
 		return
 	}
 
-	// Sign identifier
-	signature, err := SignData(data)
-	if err != nil {
-		log.Println("Unable to sign received client identifier:", err)
-		return
-	}
-
-	// Send signature back
-	err = binary.Write(conn, binary.LittleEndian, signature)
-	if err != nil {
-		log.Println("Stream error:", err)
-		return
-	}
-
 	// Record machine data if it wasn't recorded yet
 	baseEncodedID := base64.StdEncoding.EncodeToString(data)
 	var machineData []byte
 
-	if machineExists(baseEncodedID) {
+	if _, prs := seenIDs[baseEncodedID]; prs {
 		log.Println("Rejecting connection - already served today.")
 		err = binary.Write(conn, binary.LittleEndian, false)
 		if err != nil {
@@ -91,6 +96,9 @@ func (s *Service) serve(conn *tls.Conn) {
 
 	clientFiles := make(map[[32]byte]string)
 	var clientList []string
+
+	filesMapLock.RLock()
+	defer filesMapLock.RUnlock()
 
 	// Get hashes from client and create an intersection
 	for {
@@ -159,29 +167,10 @@ func (s *Service) serve(conn *tls.Conn) {
 			continue
 		}
 
-		// Read file
+		// Read file to memory
 		s, err := ioutil.ReadFile(entry.ServPath)
 		if err != nil {
 			log.Panicln("Failed to read file", entry.ServPath)
-		}
-
-		// Generate and send hash
-		err = binary.Write(conn, binary.LittleEndian, entry.Hash)
-		if err != nil {
-			log.Println("Stream error:", err)
-			return
-		}
-
-		// Sign hash and send signature
-		curve = ed448.NewDecafCurve()
-		signature, ok := curve.Sign(privateKey, entry.Hash[:])
-		if !ok {
-			log.Panicln("Failed to sign hash!")
-		}
-		err = binary.Write(conn, binary.LittleEndian, signature)
-		if err != nil {
-			log.Println("Stream error:", err)
-			return
 		}
 
 		// Size of file path
@@ -214,7 +203,10 @@ func (s *Service) serve(conn *tls.Conn) {
 
 	}
 
+	seenIDsMtx.Lock()
+	seenIDs[baseEncodedID] = struct{}{}
+	seenIDsMtx.Unlock()
 	// Logging virtual memory statistics received from the client to the log file
-	log.Println("HWInfo:", baseEncodedID+":"+string(machineData))
+	log.Println("HWInfo:", baseEncodedID+": "+string(machineData))
 	log.Println("Success!")
 }

@@ -13,12 +13,13 @@
 package main
 
 import (
-	"crypto/sha256"
 	"encoding/binary"
 	"encoding/json"
+	"fmt"
 	"io"
 )
 
+// WriteHWInfo writes machine information in form of JSON to given Writer.
 func WriteHWInfo(out io.Writer) error {
 	b, err := json.Marshal(GetMachineInfo())
 	if err != nil {
@@ -32,50 +33,32 @@ func WriteHWInfo(out io.Writer) error {
 	return err
 }
 
-func SendHashListEntry(pipe io.ReadWriter, path string, hash []byte) (bool, error) {
-	err := binary.Write(pipe, binary.LittleEndian, hash)
+// SendHashListEntry writes serializes hashlist entry to out io.Writer.
+func SendHashListEntry(out io.Writer, path string, hash []byte) error {
+	err := binary.Write(out, binary.LittleEndian, hash)
 	if err != nil {
-		return false, err
+		return err
 	}
 	bytesPath := []byte(path)
-	err = binary.Write(pipe, binary.LittleEndian, uint64(len(bytesPath)))
+	err = binary.Write(out, binary.LittleEndian, uint64(len(bytesPath)))
 	if err != nil {
-		return false, err
+		return err
 	}
-	err = binary.Write(pipe, binary.LittleEndian, bytesPath)
-	if err != nil {
-		return false, err
-	}
-	resp := false
-	err = binary.Read(pipe, binary.LittleEndian, &resp)
-	return resp, err
+	return binary.Write(out, binary.LittleEndian, bytesPath)
 }
 
-func FinishHashList(pipe io.ReadWriter) error {
-	zeroes := [32]byte{}
-	_, err := pipe.Write(zeroes[:])
-	return err
-}
-
+// Packet is an update unit that contains file that needs to be updated and some metadata
 type Packet struct {
-	Hash      [32]byte
-	Signature [112]byte
-	FilePath  string
-	Blob      []byte
+	FilePath string
+	Blob     io.Reader
+	Size     uint64
 }
 
+// ReadPacket deserializes packet structure from a binary stream
 func ReadPacket(in io.Reader) (*Packet, error) {
 	res := new(Packet)
-	err := binary.Read(in, binary.LittleEndian, &res.Hash)
-	if err != nil {
-		return nil, err
-	}
-	err = binary.Read(in, binary.LittleEndian, &res.Signature)
-	if err != nil {
-		return nil, err
-	}
 	var size uint64
-	err = binary.Read(in, binary.LittleEndian, &size)
+	err := binary.Read(in, binary.LittleEndian, &size)
 	if err != nil {
 		return nil, err
 	}
@@ -85,25 +68,53 @@ func ReadPacket(in io.Reader) (*Packet, error) {
 		return nil, err
 	}
 	res.FilePath = string(pathBytes)
-	size = uint64(0)
-	err = binary.Read(in, binary.LittleEndian, &size)
+	err = binary.Read(in, binary.LittleEndian, &res.Size)
 	if err != nil {
 		return nil, err
 	}
-	res.Blob = make([]byte, size)
-	err = binary.Read(in, binary.LittleEndian, &res.Blob)
-	if err != nil {
-		return nil, err
-	}
+	res.Blob = io.LimitReader(in, int64(res.Size))
 	return res, nil
 }
 
-func (p Packet) Verify() bool {
-	sum := sha256.Sum256(p.Blob)
-	if sum != p.Hash {
-		return false
+// WriteTo implements io.WriterTo for Packet. Each packet must be
+// written before reading next one.
+func (p Packet) WriteTo(w io.Writer) (int64, error) {
+	return io.Copy(w, p.Blob)
+}
+
+func copyWithProgress(filename string, size uint64, src io.Reader, dst io.Writer) error {
+	written := uint64(0)
+	buf := make([]byte, 65536) // There is nothing wrong with using big buffers.
+
+	eof := false
+	for !eof {
+		nr, er := src.Read(buf)
+		if nr > 0 {
+			nw, ew := dst.Write(buf[0:nr])
+			if nw > 0 {
+				written += uint64(nw)
+			}
+			if ew != nil {
+				return ew
+			}
+			if nr != nw {
+				return io.ErrShortWrite
+			}
+		}
+		if er != nil {
+			if er == io.EOF {
+				eof = true
+			} else {
+				return er
+			}
+		}
+
+		fmt.Printf("\rReceiving %s (%s of %s, %v%%)...",
+			filename, humanReadableSize(written), humanReadableSize(size),
+			int(float64(written)/float64(size)*100))
 	}
-	// crypto.go
-	isValid := Verify(sum[:], p.Signature)
-	return isValid
+	// This whitespace should override indicator left on line.
+	fmt.Printf("\rReceived %s						\n", filename)
+
+	return nil
 }

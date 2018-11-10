@@ -5,6 +5,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"strconv"
 )
 
 // posString returns the first index of element in slice.
@@ -46,4 +47,24 @@ func askForConfirmation() bool {
 func fileExists(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil
+}
+
+// humanReadableSize converts amount of bytes into readable value - kibibytes, mebibytes of gibibytes.
+func humanReadableSize(bytes uint64) string {
+	suffix := " B"
+	val := float64(bytes)
+	if val > 1024 {
+		val /= 1024
+		suffix = " KiB"
+	}
+	if val > 1024 {
+		val /= 1024
+		suffix = " MiB"
+	}
+	if val > 1024 {
+		val /= 1024
+		suffix = " GiB"
+	}
+
+	return strconv.FormatFloat(val, 'f', 2, 64) + suffix
 }
