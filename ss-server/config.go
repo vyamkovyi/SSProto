@@ -64,7 +64,7 @@ func (c *Config) NewConfig() {
 		},
 		{
 			Path:       "client",
-			ClientPath: "!client",
+			ClientPath: ".",
 			Recursive:  true,
 			Sync:       false,
 		},
@@ -92,5 +92,3 @@ func (c *Config) LoadConfig(file string) error {
 	err = dec.Decode(c)
 	return err
 }
-
-// TODO: WriteConfig

@@ -96,7 +96,7 @@ func index(record indexPath) error {
 			}
 
 			watch(filepath.Dir(path))
-			res = append(res, IndexedFile{path, path, hash, !record.Sync})
+			res = append(res, IndexedFile{path, record.ClientPath, hash, !record.Sync})
 			return nil
 		})
 	} else {
@@ -115,7 +115,7 @@ func index(record indexPath) error {
 				return err
 			}
 
-			res := IndexedFile{fullFileName, fullFileName, hash, !record.Sync}
+			res := IndexedFile{fullFileName, filepath.Join(record.ClientPath, f.Name()), hash, !record.Sync}
 			filesMap[res.Hash] = res
 			filepathMap[res.ServPath] = res.Hash
 		}
@@ -129,12 +129,6 @@ func ListFiles() {
 
 	// ==> Basic directories setup is here.
 	for _, v := range serverConfig.Index {
-		// If clientPath begins with !, v.Path is interpreted as clientPath but old clientPath is stripped from the result.
-		if strings.HasPrefix(v.ClientPath, "!") {
-			v.ClientPath = v.Path[len(v.ClientPath)-1:]
-		}
-		// TODO: apply regexp over v.Path?
-
 		err := index(v)
 		if err != nil {
 			log.Println("Something went wrong during indexing:", err)
