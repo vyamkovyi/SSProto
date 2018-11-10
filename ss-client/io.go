@@ -15,6 +15,7 @@ package main
 import (
 	"encoding/binary"
 	"encoding/json"
+	"fmt"
 	"io"
 )
 
@@ -79,4 +80,41 @@ func ReadPacket(in io.Reader) (*Packet, error) {
 // written before reading next one.
 func (p Packet) WriteTo(w io.Writer) (int64, error) {
 	return io.Copy(w, p.Blob)
+}
+
+func copyWithProgress(filename string, size uint64, src io.Reader, dst io.Writer) error {
+	written := uint64(0)
+	buf := make([]byte, 65536) // There is nothing wrong with using big buffers.
+
+	eof := false
+	for !eof {
+		nr, er := src.Read(buf)
+		if nr > 0 {
+			nw, ew := dst.Write(buf[0:nr])
+			if nw > 0 {
+				written += uint64(nw)
+			}
+			if ew != nil {
+				return ew
+			}
+			if nr != nw {
+				return io.ErrShortWrite
+			}
+		}
+		if er != nil {
+			if er == io.EOF {
+				eof = true
+			} else {
+				return er
+			}
+		}
+
+		fmt.Printf("\rReceiving %s (%s of %s, %v%%)...",
+			filename, humanReadableSize(written), humanReadableSize(size),
+			int(float64(written)/float64(size)*100))
+	}
+	// This whitespace should override indicator left on line.
+	fmt.Printf("\rReceived %s						\n", filename)
+
+	return nil
 }
