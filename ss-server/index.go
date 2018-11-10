@@ -55,7 +55,6 @@ func fileHash(path string) ([32]byte, error) {
 }
 
 func index(record indexPath) error {
-	var res []IndexedFile
 	var err error
 
 	fi, err := os.Stat(record.Path)
@@ -96,7 +95,9 @@ func index(record indexPath) error {
 			}
 
 			watch(filepath.Dir(path))
-			res = append(res, IndexedFile{path, record.ClientPath, hash, !record.Sync})
+			res := IndexedFile{path, filepath.Join(record.ClientPath, info.Name()), hash, !record.Sync}
+			filesMap[res.Hash] = res
+			filepathMap[res.ServPath] = res.Hash
 			return nil
 		})
 	} else {
@@ -115,6 +116,7 @@ func index(record indexPath) error {
 				return err
 			}
 
+			watch(filepath.Dir(record.Path))
 			res := IndexedFile{fullFileName, filepath.Join(record.ClientPath, f.Name()), hash, !record.Sync}
 			filesMap[res.Hash] = res
 			filepathMap[res.ServPath] = res.Hash
