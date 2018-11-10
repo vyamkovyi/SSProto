@@ -24,7 +24,7 @@ import (
 )
 
 // Client UUIDs seen since last reindexing. Used to filter repeated requests.
-var seenIDs map[string]struct{} = make(map[string]struct{})
+var seenIDs = make(map[string]struct{})
 var seenIDsMtx sync.Mutex
 
 func (s *Service) serve(conn *tls.Conn) {
