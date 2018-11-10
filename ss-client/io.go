@@ -32,24 +32,18 @@ func WriteHWInfo(out io.Writer) error {
 	return err
 }
 
-// SendHashListEntry serializes packet to a given pipe
-func SendHashListEntry(pipe io.ReadWriter, path string, hash []byte) (bool, error) {
-	err := binary.Write(pipe, binary.LittleEndian, hash)
+// SendHashListEntry writes serializes hashlist entry to out io.Writer.
+func SendHashListEntry(out io.Writer, path string, hash []byte) error {
+	err := binary.Write(out, binary.LittleEndian, hash)
 	if err != nil {
-		return false, err
+		return err
 	}
 	bytesPath := []byte(path)
-	err = binary.Write(pipe, binary.LittleEndian, uint64(len(bytesPath)))
+	err = binary.Write(out, binary.LittleEndian, uint64(len(bytesPath)))
 	if err != nil {
-		return false, err
+		return err
 	}
-	err = binary.Write(pipe, binary.LittleEndian, bytesPath)
-	if err != nil {
-		return false, err
-	}
-	resp := false
-	err = binary.Read(pipe, binary.LittleEndian, &resp)
-	return resp, err
+	return binary.Write(out, binary.LittleEndian, bytesPath)
 }
 
 // Packet is an update unit that contains file that needs to be updated and some metadata
