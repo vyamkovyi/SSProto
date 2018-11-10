@@ -49,21 +49,21 @@ func fileExists(path string) bool {
 	return err == nil
 }
 
-// humanReadableSize converts amount of bytes into readable value - kilobytes, megabytes of gigabytes.
+// humanReadableSize converts amount of bytes into readable value - kibibytes, mebibytes of gibibytes.
 func humanReadableSize(bytes uint64) string {
 	suffix := " B"
 	val := float64(bytes)
 	if val > 1024 {
 		val /= 1024
-		suffix = " KB"
+		suffix = " KiB"
 	}
 	if val > 1024 {
 		val /= 1024
-		suffix = " MB"
+		suffix = " MiB"
 	}
 	if val > 1024 {
 		val /= 1024
-		suffix = " GB"
+		suffix = " GiB"
 	}
 
 	return strconv.FormatFloat(val, 'f', 2, 64) + suffix
