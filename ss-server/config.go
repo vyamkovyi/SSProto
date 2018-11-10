@@ -73,11 +73,23 @@ func (c *Config) NewConfig() {
 
 // LoadConfig reads given file and constructs this Config object
 func (c *Config) LoadConfig(file string) error {
-	var config Config
-	configFile, err := os.Open(file)
+	configFile, err := os.Open("ssserver.json")
+	if err != nil {
+		if os.IsNotExist(err) {
+			configFile, err = os.Create("ssserver.json")
+			if err != nil {
+				return err
+			}
+			serverConfig.NewConfig()
+			jsonstr, _ := json.MarshalIndent(serverConfig, "", "	")
+			configFile.Write(jsonstr)
+		} else {
+			return err
+		}
+	}
 	defer configFile.Close()
-	jsonParser := json.NewDecoder(configFile)
-	jsonParser.Decode(&config)
+	dec := json.NewDecoder(configFile)
+	err = dec.Decode(c)
 	return err
 }
 

@@ -14,6 +14,7 @@ package main
 
 import (
 	"crypto/tls"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net"
@@ -40,6 +41,17 @@ func main() {
 	var err error
 
 	// Loading server config
+	f, err := os.OpenFile("ssserver.json", os.O_RDWR|os.O_CREATE|os.O_EXCL, 0640)
+	if err == nil {
+		serverConfig.NewConfig()
+		jsonstr, _ := json.MarshalIndent(serverConfig, "", "	")
+		f.Write(jsonstr)
+	} else {
+		if !os.IsExist(err) {
+			log.Panicln("Failed to open ssserver.json:", err)
+		}
+	}
+	f.Close()
 	err = serverConfig.LoadConfig("ssserver.json")
 	if err != nil {
 		log.Panicln("Failed to read server config:", err)
