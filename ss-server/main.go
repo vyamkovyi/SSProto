@@ -41,7 +41,7 @@ func main() {
 	var err error
 
 	// Loading server config
-	f, err := os.OpenFile("ssserver.json", os.O_RDWR|os.O_CREATE|os.O_EXCL, 0640)
+	f, err := os.OpenFile("ssserver.toml", os.O_RDWR|os.O_CREATE|os.O_EXCL, 0640)
 	if err == nil {
 		serverConfig.NewConfig()
 		jsonstr, _ := json.MarshalIndent(serverConfig, "", "	")
