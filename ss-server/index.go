@@ -95,7 +95,11 @@ func index(record indexPath) error {
 			}
 
 			watch(filepath.Dir(path))
-			res := IndexedFile{path, filepath.Join(record.ClientPath, info.Name()), hash, !record.Sync}
+			rel, err := filepath.Rel(record.Path, path)
+			if err != nil {
+				return err
+			}
+			res := IndexedFile{path, filepath.Join(record.ClientPath, rel), hash, !record.Sync}
 			filesMap[res.Hash] = res
 			filepathMap[res.ServPath] = res.Hash
 			return nil
@@ -105,6 +109,7 @@ func index(record indexPath) error {
 		if err != nil {
 			return err
 		}
+		watch(filepath.Dir(record.Path))
 		for _, f := range files {
 			if f.IsDir() || strings.Contains(f.Name(), "ignored_") {
 				continue
@@ -116,7 +121,6 @@ func index(record indexPath) error {
 				return err
 			}
 
-			watch(filepath.Dir(record.Path))
 			res := IndexedFile{fullFileName, filepath.Join(record.ClientPath, f.Name()), hash, !record.Sync}
 			filesMap[res.Hash] = res
 			filepathMap[res.ServPath] = res.Hash
