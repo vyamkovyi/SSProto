@@ -13,42 +13,42 @@
 package main
 
 import (
-	"encoding/json"
+	"github.com/BurntSushi/toml"
 	"os"
 )
 
 type indexPath struct {
-	Path string `json:"path"`
+	Path string `toml:"path"`
 
 	// ClientPath determines where the file must be stored on a client side.
 	// If this string begins with !, resulting client path will be Path with stripped ClientPath prefix.
-	ClientPath string `json:"client_path"`
+	ClientPath string `toml:"client_path"`
 
 	// Sync defines whether file must be kept in sync with client.
 	// false means that file must be present on client but is NOT required to be in sync
-	Sync bool `json:"mandatory"`
+	Sync bool `toml:"mandatory"`
 
 	// Recursive determines whether specified path must be indexed recursively.
 	// This has no effect on files.
-	Recursive bool `json:"recursive"`
+	Recursive bool `toml:"recursive"`
 }
 
 // Config is a structure with configurable data for ss-server application
 type Config struct {
 	// Address is a server address to bind server to.
 	// Syntax: <ip>:<port>
-	Address string `json:"server_address"`
+	Address string `toml:"server_address"`
 	// ServerName is a server domain, used in SSL
-	ServerName string `json:"server_name"`
+	ServerName string `toml:"server_name"`
 
-	Certificate string `json:"ssl_cert"`
-	Key         string `json:"ssl_key"`
+	Certificate string `toml:"ssl_cert"`
+	Key         string `toml:"ssl_key"`
 
-	Index []indexPath `json:"index"`
+	Index []indexPath `toml:"index"`
 
 	// A collection of snowflakes! ❄️
 	// Ignored contains files that must not be indexed and sent to client.
-	Ignored []string `json:"ignored"`
+	Ignored []string `toml:"ignored"`
 }
 
 // NewConfig initializes a Config instance with some default values
@@ -85,22 +85,21 @@ func (c *Config) NewConfig() {
 
 // LoadConfig reads given file and constructs this Config object
 func (c *Config) LoadConfig(file string) error {
-	configFile, err := os.Open("ssserver.json")
+	configFile, err := os.Open("ssserver.toml")
 	if err != nil {
 		if os.IsNotExist(err) {
-			configFile, err = os.Create("ssserver.json")
+			configFile, err = os.Create("ssserver.toml")
 			if err != nil {
 				return err
 			}
 			serverConfig.NewConfig()
-			jsonstr, _ := json.MarshalIndent(serverConfig, "", "	")
-			configFile.Write(jsonstr)
+			enc := toml.NewEncoder(configFile)
+			enc.Encode(serverConfig)
 		} else {
 			return err
 		}
 	}
 	defer configFile.Close()
-	dec := json.NewDecoder(configFile)
-	err = dec.Decode(c)
+	_, err = toml.DecodeReader(configFile, c)
 	return err
 }
