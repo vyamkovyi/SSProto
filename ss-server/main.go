@@ -27,10 +27,9 @@ import (
 // SSProtoVersion is a protocol version. Used to determine if clients need update.
 const SSProtoVersion uint8 = 2
 
-// This server's address used for connection listening.
-const address = "0.0.0.0:48879"
-
 var tlsConfig tls.Config
+
+var serverConfig Config
 
 func main() {
 	// Rotate logs and set up logging to both file and stdout
@@ -40,15 +39,21 @@ func main() {
 	log.Println("Copyright (C) Hexawolf  2018")
 	var err error
 
+	// Loading server config
+	err = serverConfig.LoadConfig("ssserver.toml")
+	if err != nil {
+		log.Panicln("Failed to read server config:", err)
+	}
+
 	// Initialize TLS
 	var cert tls.Certificate
-	cert, err = tls.LoadX509KeyPair("cert.pem", "key.pem")
+	cert, err = tls.LoadX509KeyPair(serverConfig.Certificate, serverConfig.Key)
 	if err != nil {
 		log.Panicln("Failed to initialize TLS:", err)
 	}
 	tlsConfig = tls.Config{
 		Certificates:       []tls.Certificate{cert},
-		ServerName:         "hexawolf.me",
+		ServerName:         serverConfig.ServerName,
 		InsecureSkipVerify: true,
 	}
 
@@ -63,7 +68,7 @@ func main() {
 
 	defer logFile.Close()
 
-	laddr, err := net.ResolveTCPAddr("tcp", address)
+	laddr, err := net.ResolveTCPAddr("tcp", serverConfig.Address)
 	if err != nil {
 		log.Panicln("Error listening:", err)
 	}
@@ -74,7 +79,7 @@ func main() {
 	}
 	// Close the listener when the application closes.
 	defer l.Close()
-	log.Println("Listening on", address)
+	log.Println("Listening on", serverConfig.Address)
 
 	// Start network message processing service
 	service := NewService()

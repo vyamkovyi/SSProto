@@ -46,13 +46,6 @@ var reindexTimer *time.Timer
 var reindexRequired = false
 var watcher *fsnotify.Watcher
 
-// A collection of snowflakes! ❄️
-// excludedPaths contains files that must not be indexed and sent to client.
-var excludedPaths = []string{
-	"shadowfacts",
-	"FastAsyncWorldEdit",
-}
-
 func fileHash(path string) ([32]byte, error) {
 	blob, err := ioutil.ReadFile(path)
 	if err != nil {
@@ -61,37 +54,36 @@ func fileHash(path string) ([32]byte, error) {
 	return blake2b.Sum256(blob), nil
 }
 
-// ExcludeFunc represents any suitable function that checks if passed file path must be excluded from indexing.
-// WARNING! Returning true means exclusion of file!
-type ExcludeFunc func(string) bool
+func index(record indexPath) error {
+	var err error
 
-// allFiles is a ExcludeFunc candidate that excludes only files with ignored_ prefix
-func allFiles(path string) bool {
-	return strings.Contains(path, "ignored_")
-}
-
-// jarOnly is a ExcludeFunc candidate that excludes files with .jar extension or ignored_ prefix
-func jarOnly(path string) bool {
-	if filepath.Ext(path) != ".jar" {
-		return true
+	fi, err := os.Stat(record.Path)
+	if err != nil {
+		return err
 	}
-	return allFiles(path)
-}
+	if !fi.IsDir() {
+		hash, err := fileHash(record.Path)
+		if err != nil {
+			return err
+		}
 
-func index(dir string, recursive bool, excludeFunc ExcludeFunc, shouldNotReplace bool) ([]IndexedFile, error) {
-	var res []IndexedFile
-	var err error = nil
+		res := IndexedFile{record.Path, record.ClientPath, hash, !record.Sync}
+		filesMap[hash] = res
+		filepathMap[record.Path] = hash
+		watch(filepath.Dir(record.Path))
+		return nil
+	}
 
-	watch(dir)
-	if recursive {
-		err = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+	watch(record.Path)
+	if record.Recursive {
+		err = filepath.Walk(record.Path, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				return err
 			}
-			if info.IsDir() || excludeFunc(path) {
+			if info.IsDir() || strings.Contains(path, "ignored_") {
 				return nil
 			}
-			for _, v := range excludedPaths {
+			for _, v := range serverConfig.Ignored {
 				if strings.Contains(path, v) {
 					return nil
 				}
@@ -103,41 +95,34 @@ func index(dir string, recursive bool, excludeFunc ExcludeFunc, shouldNotReplace
 			}
 
 			watch(filepath.Dir(path))
-			res = append(res, IndexedFile{path, path, hash, shouldNotReplace})
+			res := IndexedFile{path, filepath.Join(record.ClientPath, info.Name()), hash, !record.Sync}
+			filesMap[res.Hash] = res
+			filepathMap[res.ServPath] = res.Hash
 			return nil
 		})
 	} else {
-		files, err := ioutil.ReadDir(dir)
+		files, err := ioutil.ReadDir(record.Path)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		for _, f := range files {
-			if f.IsDir() || excludeFunc(f.Name()) {
+			if f.IsDir() || strings.Contains(f.Name(), "ignored_") {
 				continue
 			}
 
-			fullFileName := filepath.Join(dir, f.Name())
+			fullFileName := filepath.Join(record.Path, f.Name())
 			hash, err := fileHash(fullFileName)
 			if err != nil {
-				return nil, err
+				return err
 			}
 
-			res = append(res, IndexedFile{fullFileName, fullFileName, hash, shouldNotReplace})
+			watch(filepath.Dir(record.Path))
+			res := IndexedFile{fullFileName, filepath.Join(record.ClientPath, f.Name()), hash, !record.Sync}
+			filesMap[res.Hash] = res
+			filepathMap[res.ServPath] = res.Hash
 		}
 	}
-	return res, err
-}
-
-func addFile(servPath, clientPath string, shouldNotReplace bool) error {
-	hash, err := fileHash(servPath)
-	if err != nil {
-		return err
-	}
-
-	filesMap[hash] = IndexedFile{servPath, clientPath, hash, shouldNotReplace}
-	filepathMap[servPath] = hash
-	watch(filepath.Dir(servPath))
-	return nil
+	return err
 }
 
 func ListFiles() {
@@ -145,38 +130,12 @@ func ListFiles() {
 	filepathMap = make(map[string][32]byte)
 
 	// ==> Basic directories setup is here.
-	configs, err := index("config", true, allFiles, false)
-	if err != nil {
-		log.Println("Failed to read config dir:", err)
-	}
-	mods, err := index("mods", false, jarOnly, false)
-	if err != nil {
-		log.Println("Failed to read mods dir:", err)
-	}
-	client, err := index("client", true, allFiles, false)
-	if err != nil {
-		log.Println("Failed to read client dir:", err)
-	}
-	clientCfgs, _ := index("client/config", true, allFiles, true)
-
-	// Strip "client/" prefix from client-side paths.
-	for _, part := range [][]IndexedFile{client, clientCfgs} {
-		for i := range part {
-			part[i].ClientPath = part[i].ClientPath[7:]
+	for _, v := range serverConfig.Index {
+		err := index(v)
+		if err != nil {
+			log.Println("Something went wrong during indexing:", err)
 		}
 	}
-
-	// Put everything into global table.
-	for _, part := range [][]IndexedFile{configs, mods, client, clientCfgs} {
-		for _, entry := range part {
-			filesMap[entry.Hash] = entry
-			filepathMap[entry.ServPath] = entry.Hash
-		}
-	}
-
-	// ==> Per-file overrides go here. Call addFile for them.
-	addFile("client/options.txt", "options.txt", true)
-	addFile("client/optionsof.txt", "optionsof.txt", true)
 }
 
 func watch(path string) {
