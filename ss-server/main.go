@@ -14,7 +14,6 @@ package main
 
 import (
 	"crypto/tls"
-	"encoding/json"
 	"fmt"
 	"log"
 	"net"
@@ -41,7 +40,7 @@ func main() {
 	var err error
 
 	// Loading server config
-	err = serverConfig.LoadConfig("ssserver.json")
+	err = serverConfig.LoadConfig("ssserver.toml")
 	if err != nil {
 		log.Panicln("Failed to read server config:", err)
 	}

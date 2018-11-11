@@ -85,10 +85,10 @@ func (c *Config) NewConfig() {
 
 // LoadConfig reads given file and constructs this Config object
 func (c *Config) LoadConfig(file string) error {
-	configFile, err := os.Open("ssserver.toml")
+	configFile, err := os.Open(file)
 	if err != nil {
 		if os.IsNotExist(err) {
-			configFile, err = os.Create("ssserver.toml")
+			configFile, err = os.Create(file)
 			if err != nil {
 				return err
 			}
