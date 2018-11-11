@@ -159,6 +159,8 @@ func processFsnotifyEvent(ev fsnotify.Event) {
 		return
 	}
 
+	log.Println("fsnotify event", ev)
+
 	if ev.Op&fsnotify.Create == fsnotify.Create {
 		stat, err := os.Stat(ev.Name)
 		if err != nil {
@@ -196,8 +198,6 @@ func processFsnotifyEvent(ev fsnotify.Event) {
 		return
 	}
 
-	log.Println("fsnotify event", ev)
-
 	// Basically, most of settings are isolated in ListFiles so we don't know what
 	// to do here. Our only rescue is to rebuild index using ListFiles itself.
 	//
@@ -205,6 +205,8 @@ func processFsnotifyEvent(ev fsnotify.Event) {
 	// separate event for each thus rebuilding index 3 times what is expensive.
 	// Instead we mark existing index as "out-of-date" and rebuild it later (either
 	// when client connects or after 5 seconds).
+	log.Println("Reindexing scheduled.")
+
 	filesMapLock.Lock()
 	if reindexTimer == nil {
 		reindexTimer = time.NewTimer(5 * time.Second)
@@ -216,19 +218,21 @@ func processFsnotifyEvent(ev fsnotify.Event) {
 }
 
 func deferredIndexRebuild() {
-	<-reindexTimer.C
-	filesMapLock.Lock()
-	if reindexRequired {
-		log.Println("Reindexing files...")
-		ListFiles()
-		seenIDsMtx.Lock()
-		seenIDs = make(map[string]struct{}) // reset seen IDs
-		seenIDsMtx.Unlock()
-		reindexTimer.Stop()
-		reindexRequired = false
-		log.Println("Reindexing done")
+	for {
+		<-reindexTimer.C
+		filesMapLock.Lock()
+		if reindexRequired {
+			log.Println("Reindexing files...")
+			ListFiles()
+			seenIDsMtx.Lock()
+			seenIDs = make(map[string]struct{}) // reset seen IDs
+			seenIDsMtx.Unlock()
+			reindexTimer.Stop()
+			reindexRequired = false
+			log.Println("Reindexing done")
+		}
+		filesMapLock.Unlock()
 	}
-	filesMapLock.Unlock()
 }
 
 func handleFSEvents() {
