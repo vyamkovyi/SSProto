@@ -109,7 +109,6 @@ func index(record indexPath) error {
 		if err != nil {
 			return err
 		}
-		watch(filepath.Dir(record.Path))
 		for _, f := range files {
 			if f.IsDir() || strings.Contains(f.Name(), "ignored_") {
 				continue
