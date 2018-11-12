@@ -187,6 +187,7 @@ func processFsnotifyEvent(ev fsnotify.Event) {
 
 		// We don't have to rebuild entire index, just remove entry.
 		filesMapLock.Lock()
+		defer filesMapLock.Unlock()
 		hash, prs := filepathMap[ev.Name] // ev.Name is already absolute path
 		if !prs {
 			return
@@ -194,7 +195,6 @@ func processFsnotifyEvent(ev fsnotify.Event) {
 
 		delete(filesMap, hash)
 		delete(filepathMap, ev.Name)
-		filesMapLock.Unlock()
 		return
 	}
 
@@ -208,13 +208,13 @@ func processFsnotifyEvent(ev fsnotify.Event) {
 	log.Println("Reindexing scheduled.")
 
 	filesMapLock.Lock()
+	defer filesMapLock.Unlock()
 	if reindexTimer == nil {
 		reindexTimer = time.NewTimer(5 * time.Second)
 		go deferredIndexRebuild()
 	}
 	reindexTimer.Reset(5 * time.Second)
 	reindexRequired = true
-	filesMapLock.Unlock()
 }
 
 func deferredIndexRebuild() {
