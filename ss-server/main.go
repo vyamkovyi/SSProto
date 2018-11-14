@@ -89,5 +89,6 @@ func main() {
 	signal.Notify(c, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
 	<-c
 	fmt.Println()
-	log.Println("Signal caught, exiting!")
+	log.Println("Signal caught, waiting for connections to close and exiting...")
+	service.Stop()
 }

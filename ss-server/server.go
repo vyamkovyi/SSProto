@@ -209,4 +209,5 @@ func (s *Service) serve(conn *tls.Conn) {
 	// Logging virtual memory statistics received from the client to the log file
 	log.Println("HWInfo:", baseEncodedID+": "+string(machineData))
 	log.Println("Success!")
+	s.wg.Done()
 }

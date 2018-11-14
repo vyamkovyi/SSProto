@@ -20,11 +20,14 @@ import (
 	"time"
 )
 
+// Service encapsulates a group of goroutines processing active connections.
+// It provides functionality to start and stop the real TCP server itself and serve connections asynchronously.
 type Service struct {
 	quit chan bool
 	wg   *sync.WaitGroup
 }
 
+// NewService creates a properly initialized Service object
 func NewService() *Service {
 	s := &Service{
 		quit: make(chan bool),
