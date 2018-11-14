@@ -40,10 +40,8 @@ type IndexedFile struct {
 	ShouldNotReplace bool
 }
 
-//var filesMap map[[32]byte]IndexedFile
-var filesMap = make(map[[32]byte]IndexedFile)
+var filesMap = make(map[string]IndexedFile) // indexed by client path!
 var filesMapLock sync.RWMutex
-var filepathMap = make(map[string][32]byte)
 var reindexTimer *time.Timer
 var reindexRequired = abool.New()
 var watcher *fsnotify.Watcher
@@ -70,8 +68,7 @@ func index(record indexPath) error {
 		}
 
 		res := IndexedFile{record.Path, record.ClientPath, hash, !record.Sync}
-		filesMap[hash] = res
-		filepathMap[record.Path] = hash
+		filesMap[record.ClientPath] = res
 		watch(filepath.Dir(record.Path))
 		return nil
 	}
@@ -102,8 +99,7 @@ func index(record indexPath) error {
 				return err
 			}
 			res := IndexedFile{path, filepath.Join(record.ClientPath, rel), hash, !record.Sync}
-			filesMap[res.Hash] = res
-			filepathMap[res.ServPath] = res.Hash
+			filesMap[res.ClientPath] = res
 			return nil
 		})
 	} else {
@@ -123,8 +119,7 @@ func index(record indexPath) error {
 			}
 
 			res := IndexedFile{fullFileName, filepath.Join(record.ClientPath, f.Name()), hash, !record.Sync}
-			filesMap[res.Hash] = res
-			filepathMap[res.ServPath] = res.Hash
+			filesMap[res.ClientPath] = res
 		}
 	}
 	return err
@@ -187,13 +182,8 @@ func processFsnotifyEvent(ev fsnotify.Event) {
 		// We don't have to rebuild entire index, just remove entry.
 		filesMapLock.Lock()
 		defer filesMapLock.Unlock()
-		hash, prs := filepathMap[ev.Name] // ev.Name is already absolute path
-		if !prs {
-			return
-		}
 
-		delete(filesMap, hash)
-		delete(filepathMap, ev.Name)
+		delete(filesMap, ev.Name) // ev.Name is already absolute path
 		return
 	}
 

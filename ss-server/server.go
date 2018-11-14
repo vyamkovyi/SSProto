@@ -94,7 +94,7 @@ func (s *Service) serve(conn *tls.Conn) {
 		return
 	}
 
-	clientFiles := make(map[[32]byte]string)
+	clientFiles := make(map[string]string)
 	var clientList []string
 
 	filesMapLock.RLock()
@@ -122,21 +122,23 @@ func (s *Service) serve(conn *tls.Conn) {
 		}
 
 		// Expect file path
-		data = make([]byte, size)
-		err = binary.Read(conn, binary.LittleEndian, data)
+		filePath := make([]byte, size)
+		err = binary.Read(conn, binary.LittleEndian, filePath)
 		if err != nil {
 			log.Println("Stream error:", err)
 			return
 		}
 
 		// Construct client files list
-		clientList = append(clientList, string(data))
+		clientList = append(clientList, string(filePath))
 
 		// Create intersection of client and server maps
 		contains := false
-		if v, ok := filesMap[hash]; ok {
-			contains = true
-			clientFiles[hash] = v.ServPath
+		if v, ok := filesMap[string(filePath)]; ok {
+			contains = bytes.Equal(v.Hash[:], hash[:])
+			if contains {
+				clientFiles[string(filePath)] = v.ServPath
+			}
 		}
 
 		// Answer if file is valid
@@ -148,12 +150,12 @@ func (s *Service) serve(conn *tls.Conn) {
 	}
 
 	// Remove difference from server files to create a list of mods that we need to send
-	changes := make(map[[32]byte]IndexedFile)
-	for k, v := range filesMap {
-		if _, ok := clientFiles[k]; ok {
+	changes := make(map[string]IndexedFile)
+	for _, v := range filesMap {
+		if _, ok := clientFiles[v.ClientPath]; ok {
 			continue
 		}
-		changes[k] = v
+		changes[v.ClientPath] = v
 	}
 
 	for _, entry := range changes {
