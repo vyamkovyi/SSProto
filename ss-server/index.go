@@ -40,9 +40,10 @@ type IndexedFile struct {
 	ShouldNotReplace bool
 }
 
-var filesMap map[[32]byte]IndexedFile
+//var filesMap map[[32]byte]IndexedFile
+var filesMap = make(map[[32]byte]IndexedFile)
 var filesMapLock sync.RWMutex
-var filepathMap map[string][32]byte
+var filepathMap = make(map[string][32]byte)
 var reindexTimer *time.Timer
 var reindexRequired = abool.New()
 var watcher *fsnotify.Watcher
@@ -129,11 +130,8 @@ func index(record indexPath) error {
 	return err
 }
 
+// ListFiles processes files queued for indexing in server config
 func ListFiles() {
-	filesMap = make(map[[32]byte]IndexedFile)
-	filepathMap = make(map[string][32]byte)
-
-	// ==> Basic directories setup is here.
 	for _, v := range serverConfig.Index {
 		err := index(v)
 		if err != nil {
