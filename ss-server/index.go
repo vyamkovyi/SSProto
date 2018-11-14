@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
+	"github.com/tevino/abool"
 	"golang.org/x/crypto/blake2b"
 )
 
@@ -43,7 +44,7 @@ var filesMap map[[32]byte]IndexedFile
 var filesMapLock sync.RWMutex
 var filepathMap map[string][32]byte
 var reindexTimer *time.Timer
-var reindexRequired = false
+var reindexRequired = abool.New()
 var watcher *fsnotify.Watcher
 
 func fileHash(path string) ([32]byte, error) {
@@ -214,24 +215,24 @@ func processFsnotifyEvent(ev fsnotify.Event) {
 		go deferredIndexRebuild()
 	}
 	reindexTimer.Reset(5 * time.Second)
-	reindexRequired = true
+	reindexRequired.Set()
 }
 
 func deferredIndexRebuild() {
 	for {
 		<-reindexTimer.C
-		filesMapLock.Lock()
-		if reindexRequired {
+		if reindexRequired.IsSet() {
+			filesMapLock.Lock()
 			log.Println("Reindexing files...")
 			ListFiles()
 			seenIDsMtx.Lock()
 			seenIDs = make(map[string]struct{}) // reset seen IDs
 			seenIDsMtx.Unlock()
 			reindexTimer.Stop()
-			reindexRequired = false
 			log.Println("Reindexing done")
+			reindexRequired.UnSet()
+			filesMapLock.Unlock()
 		}
-		filesMapLock.Unlock()
 	}
 }
 

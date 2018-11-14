@@ -47,18 +47,18 @@ func (s *Service) serve(conn *tls.Conn) {
 	// Force pending reindexing if any so we will not
 	// send newer version of file when we have only
 	// hash of older version.
-	filesMapLock.Lock()
-	if reindexRequired {
+	if reindexRequired.IsSet() {
+		filesMapLock.Lock()
 		log.Println("Reindexing files...")
 		ListFiles()
 		seenIDsMtx.Lock()
 		seenIDs = make(map[string]struct{})
 		seenIDsMtx.Unlock()
 		log.Println("Reindexing done")
-		reindexRequired = false
 		reindexTimer.Stop()
+		reindexRequired.UnSet()
+		filesMapLock.Unlock()
 	}
-	filesMapLock.Unlock()
 
 	// Expecting 32-bytes long identifier
 	data := make([]byte, 32)
