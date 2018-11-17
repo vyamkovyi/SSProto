@@ -17,6 +17,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"strings"
 )
 
 // WriteHWInfo writes machine information in form of JSON to given Writer.
@@ -87,6 +88,7 @@ func copyWithProgress(filename string, size uint64, src io.Reader, dst io.Writer
 	buf := make([]byte, 65536) // There is nothing wrong with using big buffers.
 
 	eof := false
+	var msgLength int
 	for !eof {
 		nr, er := src.Read(buf)
 		if nr > 0 {
@@ -109,12 +111,21 @@ func copyWithProgress(filename string, size uint64, src io.Reader, dst io.Writer
 			}
 		}
 
-		fmt.Printf("\rReceiving %s (%s of %s, %v%%)...",
+		newstr := fmt.Sprintf("\rReceiving %s (%s of %s, %v%%)...",
 			filename, humanReadableSize(written), humanReadableSize(size),
 			int(float64(written)/float64(size)*100))
+		if len(newstr) < msgLength {
+			newstr += strings.Repeat(" ", msgLength-len(newstr))
+		}
+		msgLength = len(newstr)
+		fmt.Print(newstr)
 	}
-	// This whitespace should override indicator left on line.
-	fmt.Printf("\rReceived %s						\n", filename)
+	newstr := fmt.Sprintf("\rReceived %s", filename)
+	if msgLength > len(newstr) {
+		newstr += strings.Repeat(" ", msgLength-len(newstr))
+	}
+	msgLength = len(newstr)
+	fmt.Print(newstr + "\n")
 
 	return nil
 }
