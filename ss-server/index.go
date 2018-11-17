@@ -137,7 +137,7 @@ func ListFiles() {
 
 func watch(path string) {
 	// We will catch changes in all files in directory we watch.
-	abs, err := filepath.Abs(filepath.Dir(path))
+	abs, err := filepath.Abs(path)
 	if err != nil {
 		log.Println("Failed to convert to abs path:", err)
 		return
@@ -148,11 +148,6 @@ func watch(path string) {
 }
 
 func processFsnotifyEvent(ev fsnotify.Event) {
-	if ev.Op&fsnotify.Chmod == fsnotify.Chmod {
-		// We don't care.
-		return
-	}
-
 	log.Println("fsnotify event", ev)
 
 	if ev.Op&fsnotify.Create == fsnotify.Create {
@@ -194,7 +189,9 @@ func processFsnotifyEvent(ev fsnotify.Event) {
 	// separate event for each thus rebuilding index 3 times what is expensive.
 	// Instead we mark existing index as "out-of-date" and rebuild it later (either
 	// when client connects or after 5 seconds).
-	log.Println("Reindexing scheduled.")
+	if !reindexRequired.IsSet() {
+		log.Println("Reindexing scheduled.")
+	}
 
 	filesMapLock.Lock()
 	defer filesMapLock.Unlock()
