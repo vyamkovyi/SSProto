@@ -17,6 +17,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 )
 
@@ -36,6 +37,7 @@ func WriteHWInfo(out io.Writer) error {
 
 // SendHashListEntry writes serializes hashlist entry to out io.Writer.
 func SendHashListEntry(out io.Writer, path string, hash []byte) error {
+	path = strings.Replace(path, string(os.PathSeparator), "/", -1)
 	err := binary.Write(out, binary.LittleEndian, hash)
 	if err != nil {
 		return err
@@ -74,6 +76,9 @@ func ReadPacket(in io.Reader) (*Packet, error) {
 		return nil, err
 	}
 	res.Blob = io.LimitReader(in, int64(res.Size))
+
+	res.FilePath = strings.Replace(res.FilePath, "/", string(os.PathSeparator), -1)
+
 	return res, nil
 }
 
