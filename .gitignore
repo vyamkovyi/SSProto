@@ -30,3 +30,8 @@ config/
 *.key
 *.dat
 
+ss-client/ss-client
+ss-client/Updater
+ss-client/Updater-mac
+ss-client/Updater.exe
+ss-server/ss-server
