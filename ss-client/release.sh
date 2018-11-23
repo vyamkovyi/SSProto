@@ -9,6 +9,6 @@ fi
 certPath="$1"
 serverName="$2"
 
-GOOS=linux EXTRABUILDFLAGS=--buildmode=pie ./build.sh $certPath $serverName "Updater"
-GOOS=windows ./build.sh $certPath $serverName "Updater.exe"
+GOOS=linux EXTRABUILDFLAGS=--buildmode=pie ./build.sh $certPath $serverName "Updater-linux"
+GOARCH=386 GOOS=windows ./build.sh $certPath $serverName "Updater.exe"
 GOOS=darwin ./build.sh $certPath $serverName "Updater-mac"
