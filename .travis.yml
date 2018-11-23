@@ -3,5 +3,12 @@ language: go
 go:
 - "1.x"
 
+install:
+- "true"
+
+script:
+- cd ss-server && go build && cd ..
+- cd ss-client && ./release.sh mc.pem hexawolf.me:48879
+
 env:
 - GO111MODULE=on
