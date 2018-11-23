@@ -8,6 +8,6 @@ if [ $# -ne 3 ]; then
     exit 1
 fi
 
-cert=$(head -n -1 "$1" | tail -n +2 | paste -s -d "")
+cert=$(printf "%s" "$(< $1)" | head -n -1 | tail -n +2 | paste -s -d "")
 
 go build -o $3 --ldflags="-s -w -X main.certEnc=$cert -X main.targetHost=$2" $EXTRABUILDFLAGS
