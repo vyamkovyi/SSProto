@@ -17,6 +17,7 @@ import (
 	"crypto/tls"
 	"encoding/base64"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -34,8 +35,9 @@ import (
 // SSProtoVersion is a protocol version. Used to determine if we need to update this application.
 const SSProtoVersion uint8 = 2
 
-// This variable is set by build.sh
+// These variables are set by build.sh
 var targetHost string
+var buildStamp string
 
 var noLaunch = false
 var forceCurrent = false
@@ -192,9 +194,38 @@ func prepareInstallDir() error {
 	return nil
 }
 
-// runSelfupdate downloads latest Updater binary from website, replaces current
-// binary with it and restarts itself. This function returns only on error.
-func runSelfupdate() error {
+func runSelfupdate() {
+	shouldRestart, err := downloadLatestClient()
+	if err != nil {
+		Crash("downloadLatestClient", err)
+	}
+
+	if shouldRestart {
+		// Get full path to updater executable
+		executable, err := exePath()
+		if err != nil {
+			Crash(err)
+		}
+
+		// Run new instance of this application
+		cmd := exec.Command(executable)
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		err = cmd.Run()
+		if err != nil {
+			Crash(err)
+		}
+
+		os.Exit(0)
+	}
+}
+
+// downloadLatestClient downloads latest Updater binary from website, replaces
+// current binary with it.
+//
+// If this function returns true - self-update is performed and program should
+// be restarted, otherwise if err=nil execution can be continued as is.
+func downloadLatestClient() (bool, error) {
 	var filename string
 	if runtime.GOOS == "windows" {
 		filename = "Updater.exe"
@@ -204,37 +235,40 @@ func runSelfupdate() error {
 		filename = "Updater"
 	}
 
-	fmt.Println("Downloading latest updater version...")
+	cl := http.Client{}
 
-	resp, err := http.Get("https://" + strings.Split(targetHost, ":")[0] + "/projects/hexamine/" + filename)
+	fmt.Println("Checking for launcher updates...")
+
+	req, err := http.NewRequest("GET", "https://"+strings.Split(targetHost, ":")[0]+"/projects/hexamine/"+filename, nil)
 	if err != nil {
-		return err
+		return false, err
 	}
 
-	//TODO: req.Header.Set("If-Modified-Since", buildTimestamp)
+	req.Header.Set("If-Modified-Since", buildStamp)
 
-	// Get full path to updater executable
-	executable, err := exePath()
+	resp, err := cl.Do(req)
 	if err != nil {
-		return err
+		return false, err
 	}
+	if resp.StatusCode == http.StatusNotModified {
+		// it's not necesary to perform update.
+		return false, nil
+	}
+	if resp.StatusCode != http.StatusOK {
+		return false, errors.New("HTTP " + resp.Status)
+	}
+
+	fmt.Println("Downloaded new version!")
 
 	// Download new version and replace updater file
 	fmt.Println("Applying update and starting updater again...")
 	err = update.Apply(resp.Body, update.Options{})
 	if err != nil {
-		return err
+		return false, err
 	}
 	resp.Body.Close()
 
-	// Run new instance of this application
-	err = exec.Command(executable).Run()
-	if err != nil {
-		return err
-	}
-
-	os.Exit(0)
-	return nil
+	return true, nil
 }
 
 func savePacket(p *Packet) error {
@@ -301,12 +335,15 @@ func removeExcessFiles(c *tls.Conn) error {
 
 // main ✨✨✨
 func main() {
-	fmt.Println("SSProto, protocol version:", SSProtoVersion)
+	fmt.Println("SSProto updater")
 	fmt.Println("Copyright (C) Hexawolf 2018")
 
 	handleArgs()
 
 	fmt.Println("SSProto version:", SSProtoVersion)
+	fmt.Println("Build timestamp:", buildStamp)
+
+	runSelfupdate()
 
 	c, err := tls.Dial("tcp", targetHost, &conf)
 	if err != nil {
@@ -337,9 +374,7 @@ func main() {
 		}
 		fmt.Println("Server protocol version:", pv)
 		if pv != SSProtoVersion {
-			if err := runSelfupdate(); err != nil {
-				Crash("runSelfupdate", err)
-			}
+			runSelfupdate()
 		}
 	}
 
