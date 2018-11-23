@@ -17,6 +17,12 @@ before sending data itself.
 +-----------------+-- .... --+
 ```
 
+### Filesystem paths
+
+All filesystem paths sent through network MUST use forward slash (`/`) as a
+path component separator. Both sides MUST implement corresponding translation 
+to/from OS-specific format.
+
 ## Typical session
 
 #### Stage 0: Preparation

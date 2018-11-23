@@ -19,6 +19,8 @@ import (
 	"encoding/binary"
 	"io/ioutil"
 	"log"
+	"os"
+	"strings"
 	"sync"
 	"time"
 )
@@ -175,14 +177,16 @@ func (s *Service) serve(conn *tls.Conn) {
 			log.Panicln("Failed to read file", entry.ServPath)
 		}
 
+		clientPath := strings.Replace(entry.ClientPath, string(os.PathSeparator), "/", -1)
+
 		// Size of file path
-		err = binary.Write(conn, binary.LittleEndian, uint64(len([]byte(entry.ClientPath))))
+		err = binary.Write(conn, binary.LittleEndian, uint64(len([]byte(clientPath))))
 		if err != nil {
 			log.Println("Stream error:", err)
 		}
 
 		// File path
-		err = binary.Write(conn, binary.LittleEndian, []byte(entry.ClientPath))
+		err = binary.Write(conn, binary.LittleEndian, []byte(clientPath))
 		if err != nil {
 			log.Println("Stream error:", err)
 			return
