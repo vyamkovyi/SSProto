@@ -26,17 +26,20 @@ var conf tls.Config
 // Both variables are set by build script.
 var certEnc, keyEnc string
 
-// LoadKeys deserializes certificate stored in memory.
-func LoadKeys() error {
+func init() {
 	certs := x509.NewCertPool()
+
+	// Golang linker can't handle these ----- in arguments, so we have to
+	// strip then in build.sh and add them back here.
 	cert := "-----BEGIN CERTIFICATE-----\n" + certEnc + "\n-----END CERTIFICATE-----"
-	certs.AppendCertsFromPEM([]byte(cert))
+	if ok := certs.AppendCertsFromPEM([]byte(cert)); !ok {
+		panic("failed to load cert")
+	}
 	conf = tls.Config{
 		RootCAs: certs,
 		// Extract domain from targetHost
 		ServerName: strings.Split(targetHost, ":")[0],
 	}
-	return nil
 }
 
 func newUUID() ([]byte, error) {

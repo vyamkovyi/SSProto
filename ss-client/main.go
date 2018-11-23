@@ -39,7 +39,7 @@ var targetHost string
 
 var noLaunch = false
 var forceCurrent = false
-var installDirectory = "." + string(os.PathSeparator)
+var installDirectory string
 
 // launchClient tries to launch client startup script distributed with Hexamine client.
 // Notice for future generations: you likely want to get rid of this if you want reuse SSProto
@@ -112,7 +112,6 @@ func exePath() (string, error) {
 func handleArgs() {
 	if containsString(os.Args, "--help") {
 		fmt.Println("Usage:")
-		fmt.Println("--force-current \t- Disable any directory checks and use current dir.")
 		fmt.Println("--only-launch \t- Do not perform any updates, just launch the game.")
 		fmt.Println("--install-dir \"path\" \t- directory to install client.")
 		fmt.Println("--no-launch \t- Do not launch client after installation.")
@@ -153,12 +152,7 @@ SOFTWARE.`)
 		noLaunch = true
 	}
 
-	if containsString(os.Args, "--force-current") {
-		forceCurrent = true
-	}
-
 	if containsString(os.Args, "--install-dir") {
-		forceCurrent = true
 		index := posString(os.Args, "--install-dir") + 1
 		if len(os.Args) < index {
 			fmt.Println()
@@ -166,11 +160,143 @@ SOFTWARE.`)
 			os.Exit(1)
 		}
 		installDirectory = os.Args[index]
-		if !strings.ContainsRune(installDirectory, os.PathSeparator) {
-			fmt.Println("Invalid path!")
-			os.Exit(1)
+	}
+}
+
+// prepareInstallDir selects install directory and chdir's into it.
+func prepareInstallDir() error {
+	if installDirectory == "" {
+		if runtime.GOOS == "windows" {
+			installDirectory = os.Getenv("AppData") + "\\.hexamine\\"
+		} else {
+			installDirectory = os.Getenv("HOME") + "/.hexamine/"
 		}
 	}
+	fmt.Println("Installation directory is", installDirectory)
+	if err := os.MkdirAll(installDirectory, os.ModePerm); err != nil {
+		return err
+	}
+	if err := os.Chdir(installDirectory); err != nil {
+		return err
+	}
+	if err := os.MkdirAll("mods", os.ModePerm); err != nil {
+		return err
+	}
+	if err := os.MkdirAll("config", os.ModePerm); err != nil {
+		return err
+	}
+	if err := os.MkdirAll("versions", os.ModePerm); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// runSelfupdate downloads latest Updater binary from website, replaces current
+// binary with it and restarts itself. This function returns only on error.
+func runSelfupdate() error {
+	var filename string
+	if runtime.GOOS == "windows" {
+		filename = "Updater.exe"
+	} else if runtime.GOOS == "darwin" {
+		filename = "Updater-mac"
+	} else {
+		filename = "Updater"
+	}
+
+	fmt.Println("Downloading latest updater version...")
+
+	resp, err := http.Get("https://" + strings.Split(targetHost, ":")[0] + "/projects/hexamine/" + filename)
+	if err != nil {
+		return err
+	}
+
+	//TODO: req.Header.Set("If-Modified-Since", buildTimestamp)
+
+	// Get full path to updater executable
+	executable, err := exePath()
+	if err != nil {
+		return err
+	}
+
+	// Download new version and replace updater file
+	fmt.Println("Applying update and starting updater again...")
+	err = update.Apply(resp.Body, update.Options{})
+	if err != nil {
+		return err
+	}
+	resp.Body.Close()
+
+	// Run new instance of this application
+	err = exec.Command(executable).Run()
+	if err != nil {
+		return err
+	}
+
+	os.Exit(0)
+	return nil
+}
+
+func savePacket(p *Packet) error {
+	// Ensure all directories exist.
+	err := os.MkdirAll(filepath.Dir(p.FilePath), 0775)
+	if err != nil {
+		return err
+	}
+
+	f, err := os.Create(p.FilePath + ".new")
+	if err != nil {
+		return err
+	}
+
+	err = copyWithProgress(p.FilePath, p.Size, p.Blob, f)
+	if err != nil {
+		f.Close()
+		os.Remove(p.FilePath + ".new")
+		return err
+	}
+
+	f.Close()
+
+	err = os.Rename(p.FilePath+".new", p.FilePath)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func removeExcessFiles(c *tls.Conn) error {
+	list, err := collectHashList()
+	if err != nil {
+		return err
+	}
+	fmt.Println("Sending information about", len(list), "files...")
+
+	// Apply "changes" requested by server - delete excess files.
+	orderedList := make([]string, 0, len(list))
+	for k, v := range list {
+		err := SendHashListEntry(c, k, v)
+		if err != nil {
+			return err
+		}
+		orderedList = append(orderedList, k)
+	}
+	for _, path := range orderedList {
+		resp := true
+		err := binary.Read(c, binary.LittleEndian, &resp)
+		if err != nil {
+			return err
+		}
+
+		if !resp && filepath.Dir(path) == "mods" {
+			fmt.Println("Removing", path)
+			if err := os.Remove(path); err != nil {
+				fmt.Printf("Failed to remove %v: %v\n", path, err)
+			}
+		}
+	}
+	return nil
 }
 
 // main ✨✨✨
@@ -181,33 +307,22 @@ func main() {
 	handleArgs()
 
 	fmt.Println("SSProto version:", SSProtoVersion)
-	// Load hardcoded key.
-	LoadKeys()
 
 	c, err := tls.Dial("tcp", targetHost, &conf)
 	if err != nil {
 		fmt.Println("Unable to connect the update server.")
 		fmt.Println("If you really want to start Hexamine client without updating, " +
 			"run updater with --only-launch flag.")
-		Crash(err.Error())
+		Crash("tls.Dial", err)
 	}
 	defer c.Close()
+
 	defer time.Sleep(time.Second * 5)
 
 	// Setting up directory
-	fmt.Println()
-	if !forceCurrent {
-		if runtime.GOOS == "windows" {
-			installDirectory = os.Getenv("AppData") + "\\.hexamine\\"
-		} else {
-			installDirectory = os.Getenv("HOME") + "/.hexamine/"
-		}
+	if err := prepareInstallDir(); err != nil {
+		Crash("prepareInstallDir", err)
 	}
-	fmt.Println("Default directory for installation is", installDirectory)
-	os.MkdirAll(installDirectory+"mods", 0775)
-	os.MkdirAll(installDirectory+"config", 0770)
-	os.MkdirAll(installDirectory+"versions", 0775)
-	os.Chdir(installDirectory)
 
 	// Check protocol version
 	{
@@ -222,39 +337,9 @@ func main() {
 		}
 		fmt.Println("Server protocol version:", pv)
 		if pv != SSProtoVersion {
-			c.Close()
-			var filename string
-			if runtime.GOOS == "windows" {
-				filename = "Updater.exe"
-			} else if runtime.GOOS == "darwin" {
-				filename = "Updater-mac"
-			} else {
-				filename = "Updater"
+			if err := runSelfupdate(); err != nil {
+				Crash("runSelfupdate", err)
 			}
-			fmt.Println("Protocol version has changed, downloading latest updater version!")
-			resp, err := http.Get("https://" + strings.Split(targetHost, ":")[0] + "/projects/hexamine/" + filename)
-			if err != nil {
-				Crash("Protocol update failure:", err)
-			}
-			// Get full path to updater executable
-			executable, err := exePath()
-			if err != nil {
-				Crash("Protocol update failure:", err)
-			}
-			// Download new version and replace updater file
-			fmt.Println("Applying update and starting updater again...")
-			err = update.Apply(resp.Body, update.Options{})
-			if err != nil {
-				Crash("Protocol update failure:", err)
-			}
-			resp.Body.Close()
-			// Run new instance of this application
-			err = exec.Command(executable).Run()
-			if err != nil {
-				fmt.Println("A fatal error occurred causing new updater to fail:", err)
-				os.Exit(1)
-			}
-			return
 		}
 	}
 
@@ -271,13 +356,12 @@ func main() {
 		Crash("Unable to send UUID", err.Error())
 	}
 
-	// Send hardware information if necessary.
-	shouldSend := false
-	err = binary.Read(c, binary.LittleEndian, &shouldSend)
+	connectionAccepted := false
+	err = binary.Read(c, binary.LittleEndian, &connectionAccepted)
 	if err != nil {
-		Crash("Unable to read metrics byte from stream:", err)
+		Crash("Unable to read connection status byte from stream:", err)
 	}
-	if shouldSend {
+	if connectionAccepted {
 		fmt.Print("Sending HW info... ")
 		err = WriteHWInfo(c)
 		if err != nil {
@@ -292,32 +376,11 @@ func main() {
 	}
 
 	// Collect hashes of files in config/ and mods/ and send them.
-	list, err := collectHashList()
-	if err != nil {
-		Crash("Unable to create hash list of files:", err.Error())
-	}
-	fmt.Println("Sending information about", len(list), "files...")
-
-	// Apply "changes" requested by server - delete excess files.
-	orderedList := make([]string, 0, len(list))
-	for k, v := range list {
-		err := SendHashListEntry(c, k, v)
-		if err != nil {
-			Crash("Failed to send info about", k+":", err)
-		}
-		orderedList = append(orderedList, k)
-	}
-	for _, path := range orderedList {
-		resp := true
-		err := binary.Read(c, binary.LittleEndian, &resp)
-		if err != nil {
-			Crash("Failed to read server's response about", path+":", err)
-		}
-
-		if !resp && filepath.Dir(path) == "mods" {
-			fmt.Println("Removing", path)
-			os.Remove(path)
-		}
+	fmt.Println("Hashing all files...")
+	// TODO: This thing can be merged together with code below to increase performance.
+	// E.g. pipeining, send file info right after hashing it.
+	if err := removeExcessFiles(c); err != nil {
+		Crash(err)
 	}
 
 	zeroes := [32]byte{}
@@ -339,29 +402,8 @@ func main() {
 			Crash("Error while receiving delta:", err.Error())
 		}
 
-		// Ensure all directories exist.
-		err = os.MkdirAll(filepath.Dir(p.FilePath), 0775)
-		if err != nil {
-			Crash("Error while creating directories:", err.Error())
-		}
-
-		f, err := os.Create(p.FilePath + ".new")
-		if err != nil {
-			Crash("Error while opening write for writting:", err.Error())
-		}
-
-		err = copyWithProgress(p.FilePath, p.Size, p.Blob, f)
-		if err != nil {
-			f.Close()
-			os.Remove(p.FilePath + ".new")
-			Crash("Error writing file blob:", err.Error())
-		}
-
-		f.Close()
-
-		err = os.Rename(p.FilePath+".new", p.FilePath)
-		if err != nil {
-			Crash("Error while rename new file:", err.Error())
+		if err := savePacket(p); err != nil {
+			Crash("savePacket", err)
 		}
 	}
 }
