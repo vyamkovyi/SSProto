@@ -173,13 +173,6 @@ func processFsnotifyEvent(ev fsnotify.Event) {
 		// We don't know if this was a directory or not.
 		// However try to remove it from watcher just in case.
 		watcher.Remove(ev.Name)
-
-		// We don't have to rebuild entire index, just remove entry.
-		filesMapLock.Lock()
-		defer filesMapLock.Unlock()
-
-		delete(filesMap, ev.Name) // ev.Name is already absolute path
-		return
 	}
 
 	// Basically, most of settings are isolated in ListFiles so we don't know what
