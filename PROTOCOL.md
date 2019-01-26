@@ -37,14 +37,14 @@ to/from OS-specific format.
    server closes connection. The client MUST consider the update
    to be successful in this case.
 
-3. The client sends informatio about its hardware (dynamic-length)
+3. The client sends information about its hardware (dynamic-length)
    This protocol doesn't define any requirements for its format, but
    the current implementation uses JSON-encoded blob with OS id and 
    memory usage statistic.
 
 ### Stage 1: Client file list sending
 
-1. THe client sends hash-list entry (see below) which describes a separate
+1. The client sends hash-list entry (see below) which describes a separate
    file in a client-side file tree. The client MAY ignore (not send entries for)
    some files during this stage.
 
@@ -67,7 +67,7 @@ Hash-list entry format:
 
 ### Stage 2: Files downloading
 
-The erver sends files to the client that should be replaced (or missing).
+The server sends files to the client that should be replaced (or missing).
 
 1. The server sends files in form of special update packets (see format below) and
    then closes the connection.
